@@ -2,7 +2,7 @@
   <div
     ref="playerWrapper"
     class="relative w-full h-screen bg-black overflow-hidden"
-    style="width: 100vw; height: 100dvh; height: 100vh; margin: 0; padding: 0"
+    style="width: 100vw; height: 100dvh; height: 100vh; margin: 0; padding: 0; overscroll-behavior: none; touch-action: pan-x pinch-zoom"
   >
     <!-- Preview Next Episode (di bawah) - Reactive position -->
     <div
@@ -318,23 +318,6 @@
         </div>
       </Transition>
 
-      <!-- Progress Bar (Bottom) - Sticky, TikTok-like -->
-      <div
-        class="absolute bottom-0 left-0 right-0 z-[40] pointer-events-none"
-        style="padding: 0; margin: 0"
-      >
-        <div
-          class="relative w-full h-1 bg-white/20 progress-bar-container pointer-events-auto"
-          @mousedown="handleProgressDragStart"
-          @touchstart="handleProgressDragStart"
-        >
-          <div
-            class="absolute left-0 top-0 h-full bg-white transition-all duration-100"
-            :style="{ width: `${progressPercentage}%` }"
-          ></div>
-        </div>
-      </div>
-
       <!-- Speed Indicator (Center) - Show only 2x when pressed -->
       <Transition name="fade">
         <div
@@ -362,16 +345,62 @@
 
     <!-- Touch/Click Handler Overlay - DI LUAR videoContainer -->
     <!-- Tangkap touch event, tapi biarkan click di button lewat -->
-    <!-- Mulai dari bawah top bar (mt-16) agar tidak menutupi button -->
+    <!-- Mulai dari bawah top bar, stop sebelum progress bar area -->
     <div
-      class="absolute left-0 right-0 bottom-0"
-      style="top: 64px; z-index: 100; pointer-events: auto"
+      class="absolute left-0 right-0"
+      :style="{
+        top: '64px',
+        bottom: props.showOverlays ? '80px' : '0',
+        zIndex: 100,
+        pointerEvents: 'auto',
+      }"
       @touchstart.capture="handleTouchStartWrapper"
       @touchmove.capture="handleTouchMove"
       @touchend.capture="handleTouchEndWrapper"
       @touchcancel.capture="handleTouchEndWrapper"
       @click="handleScreenClick"
     ></div>
+
+    <!-- Progress Bar (Bottom) - Show when overlay hidden (video playing) -->
+    <!-- Safe area: 80px height untuk easy tap dan avoid conflict -->
+    <div
+      v-show="!isSwipeDragging && props.showOverlays"
+      class="fixed left-0 right-0 bottom-0 z-[190] transition-all duration-300 pointer-events-none px-4 pb-4"
+      style="height: 80px; display: flex; align-items: flex-end"
+    >
+      <div
+        ref="progressBarContainer"
+        class="relative w-full progress-bar-container cursor-pointer transition-all duration-200 pointer-events-auto"
+        style="height: 40px; display: flex; align-items: center; padding: 10px 0"
+        @mousedown.stop="handleProgressDragStart"
+        @touchstart.stop="handleProgressDragStart"
+      >
+        <!-- Actual progress bar (thin) -->
+        <div class="relative w-full h-1 bg-white/20">
+          <!-- Progress fill -->
+          <div
+            class="absolute left-0 top-0 h-full bg-white"
+            :class="isDragging ? '' : 'transition-all duration-100'"
+            :style="{ width: `${localProgressPercentage}%` }"
+          ></div>
+
+          <!-- Draggable thumb (visible when dragging) -->
+          <div
+            v-if="isDragging"
+            class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
+            :style="{ left: `${localProgressPercentage}%`, transform: 'translate(-50%, -50%)' }"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Time display (TikTok style) -->
+      <div
+        v-if="isDragging"
+        class="absolute left-1/2 -translate-x-1/2 -top-8 bg-black/80 backdrop-blur-sm px-3 py-1 rounded-full text-white text-xs font-medium"
+      >
+        {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+      </div>
+    </div>
   </div>
 </template>
 
@@ -429,7 +458,7 @@
     },
   })
 
-  const emit = defineEmits(["next-episode", "previous-episode", "ended", "timeupdate", "quality-change", "play", "pause", "toggle-overlays"])
+  const emit = defineEmits(["next-episode", "previous-episode", "ended", "timeupdate", "quality-change", "play", "pause", "toggle-overlays", "progress-update"])
 
   const playerContainer = ref(null)
   const videoElement = ref(null)
@@ -480,6 +509,7 @@
   const currentTime = ref(0)
   const duration = ref(0)
   const isDragging = ref(false)
+  const localProgressPercentage = ref(0)
   const showSpeedIndicator = ref(false)
   const isSpeedPressed = ref(false)
   const originalSpeed = ref(1)
@@ -497,9 +527,10 @@
   const dragOffset = ref(0) // Offset untuk drag animation
   const isSwiping = ref(false)
   const isSwipeDragging = ref(false)
-  const swipeThreshold = 300 // Threshold untuk next/prev (120px agar tidak terlalu sensitif)
+  const swipeThreshold = 100 // Threshold untuk next/prev (120px agar tidak terlalu sensitif)
   const videoContainer = ref(null)
   const isTransitioning = ref(false) // Flag untuk episode transition
+  const progressBarContainer = ref(null)
 
   const canGoNext = computed(() => props.canGoNext && props.currentEpisodeIndex < props.totalEpisodes - 1)
   const canGoPrevious = computed(() => props.canGoPrevious && props.currentEpisodeIndex > 0)
@@ -559,6 +590,9 @@
 
   // Initialize Plyr player
   onMounted(async () => {
+    // Auto scroll to top untuk ensure button atas tidak ketutup browser bar
+    window.scrollTo(0, 0)
+
     await nextTick()
 
     if (!videoElement.value) {
@@ -679,6 +713,13 @@
       if (player.value && !isSettingTime && !isDragging.value) {
         const time = player.value.currentTime
         currentTime.value = time
+        // Emit progress data
+        emit("progress-update", {
+          currentTime: time,
+          duration: duration.value,
+          percentage: progressPercentage.value,
+          isDragging: isDragging.value,
+        })
         // Only emit if time is progressing normally (not looping)
         if (time > 0.5) {
           emit("timeupdate", time)
@@ -848,6 +889,11 @@
 
   const handleTouchMove = (e) => {
     if (!isSwipeDragging.value) return
+
+    // Prevent pull-to-refresh on vertical swipe
+    if (e.cancelable) {
+      e.preventDefault()
+    }
 
     const currentY = e.touches[0].clientY
     const deltaY = currentY - touchStartY.value
@@ -1306,23 +1352,50 @@
     return (currentTime.value / duration.value) * 100
   })
 
+  // Watch progressPercentage untuk sync dengan local
+  watch(progressPercentage, (newVal) => {
+    if (!isDragging.value) {
+      localProgressPercentage.value = newVal
+    }
+  })
+
   const handleProgressDragStart = (e) => {
     if (!player.value) return
 
-    isDragging.value = true
-    // Hide all overlays when dragging
-    if (!props.showOverlays) {
-      emit("toggle-overlays")
+    // Stop propagation to prevent swipe/speed gestures
+    e.stopPropagation()
+    if (e.cancelable) {
+      e.preventDefault()
     }
 
-    const progressBar = e.currentTarget.closest(".progress-bar-container")
-    if (!progressBar) return
+    console.log("🎯 Progress drag start, isDragging:", isDragging.value)
+    isDragging.value = true
+    console.log("🎯 isDragging set to:", isDragging.value)
+
+    const progressBarContainer = e.currentTarget
+    if (!progressBarContainer) return
+
+    // Get actual progress bar (child div)
+    const actualProgressBar = progressBarContainer.querySelector(".relative.w-full.h-1")
+    if (!actualProgressBar) {
+      console.error("❌ Actual progress bar not found")
+      return
+    }
 
     const handleProgressDrag = (moveEvent) => {
-      const rect = progressBar.getBoundingClientRect()
+      // Prevent default to avoid scrolling
+      if (moveEvent.cancelable) {
+        moveEvent.preventDefault()
+      }
+      moveEvent.stopPropagation()
+
+      const rect = actualProgressBar.getBoundingClientRect()
       const clientX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX
       const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
       const newTime = percent * duration.value
+
+      // Update local percentage for real-time visual feedback
+      localProgressPercentage.value = percent * 100
 
       if (player.value) {
         player.value.currentTime = newTime
@@ -1330,12 +1403,16 @@
       }
     }
 
-    const handleProgressDragEnd = () => {
-      isDragging.value = false
-      // Show overlays again after dragging
-      if (props.showOverlays) {
-        emit("toggle-overlays")
+    const handleProgressDragEnd = (endEvent) => {
+      if (endEvent && endEvent.cancelable) {
+        endEvent.preventDefault()
       }
+      if (endEvent) {
+        endEvent.stopPropagation()
+      }
+
+      isDragging.value = false
+
       document.removeEventListener("mousemove", handleProgressDrag)
       document.removeEventListener("mouseup", handleProgressDragEnd)
       document.removeEventListener("touchmove", handleProgressDrag)
@@ -1345,10 +1422,10 @@
     // Initial set
     handleProgressDrag(e)
 
-    document.addEventListener("mousemove", handleProgressDrag)
+    document.addEventListener("mousemove", handleProgressDrag, { passive: false })
     document.addEventListener("mouseup", handleProgressDragEnd)
     document.addEventListener("touchmove", handleProgressDrag, { passive: false })
-    document.addEventListener("touchend", handleProgressDragEnd)
+    document.addEventListener("touchend", handleProgressDragEnd, { passive: false })
   }
 
   // Format time helper
@@ -1481,6 +1558,12 @@
     setCurrentTime: (time) => {
       if (player.value) {
         player.value.currentTime = time
+      }
+    },
+    seekTo: (time) => {
+      if (player.value) {
+        player.value.currentTime = time
+        currentTime.value = time
       }
     },
     getDuration: () => player.value?.duration || 0,

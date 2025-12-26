@@ -47,6 +47,7 @@
         @play="handlePlayerPlay"
         @pause="handlePlayerPause"
         @toggle-overlays="showAllOverlays = !showAllOverlays"
+        @progress-update="handleProgressUpdate"
       />
 
       <!-- VIP Restricted Placeholder - Overlay yang block screen -->
@@ -115,9 +116,11 @@
           :drama-caption="drama ? drama.introduction || drama.description || drama.synopsis || '' : ''"
           :is-playing="isPlayerPlaying"
           :show-overlays="showAllOverlays"
+          :progress-data="progressData"
           :key="`episode-selector-${isVIP}-${episodes.length}-${showAllOverlays}`"
           @select-episode="handleEpisodeClick"
           @toggle-overlays="showAllOverlays = !showAllOverlays"
+          @seek-video="handleSeekVideo"
         />
       </Transition>
     </div>
@@ -136,6 +139,35 @@
   import axios from "axios"
 
   const route = useRoute()
+
+  // Set viewport untuk mobile - prevent zoom dan auto scroll
+  useHead({
+    meta: [
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover",
+      },
+    ],
+  })
+
+  // Auto scroll to top dan hide address bar
+  onMounted(() => {
+    // Multiple attempts untuk ensure scroll
+    window.scrollTo(0, 0)
+
+    setTimeout(() => {
+      window.scrollTo(0, 1) // Scroll 1px untuk trigger address bar hide
+      setTimeout(() => {
+        window.scrollTo(0, 0) // Back to top
+      }, 100)
+    }, 100)
+
+    // Force scroll on any touch
+    const forceScroll = () => {
+      window.scrollTo(0, 0)
+    }
+    window.addEventListener("touchstart", forceScroll, { once: true })
+  })
   // Get ID from URL params (ensure it's a string)
   const dramaId = computed(() => {
     const id = route.params.id
@@ -156,6 +188,7 @@
   const isPlayerPlaying = ref(false)
   const savedCurrentTime = ref(0)
   const showAllOverlays = ref(false) // Control untuk show/hide semua overlay (false = visible, true = hidden)
+  const progressData = ref({ currentTime: 0, duration: 0, percentage: 0, isDragging: false })
 
   // VIP Management
   const { isVIP, checkVIPStatus } = useVIP()
@@ -472,6 +505,16 @@
     if (videoPlayer.value) {
       const paused = videoPlayer.value.isPaused?.() ?? true
       isPlayerPlaying.value = !paused
+    }
+  }
+
+  const handleProgressUpdate = (data) => {
+    progressData.value = data
+  }
+
+  const handleSeekVideo = (time) => {
+    if (videoPlayer.value && videoPlayer.value.seekTo) {
+      videoPlayer.value.seekTo(time)
     }
   }
 

@@ -1,11 +1,11 @@
 <template>
   <div>
     <!-- Bottom Bar -->
-    <div class="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black via-black/95 to-transparent px-4 py-4">
+    <div class="fixed bottom-0 left-0 right-0 z-[180] bg-gradient-to-t from-black via-black/95 to-transparent px-4 pt-4 pb-2">
       <!-- Drama Title and Caption - Always show, hide when playing -->
       <div
         v-if="(dramaTitle && dramaTitle.trim()) || (dramaCaption && dramaCaption.trim())"
-        class="mb-4 pb-4 border-b border-white/10"
+        class="mb-6 pb-2"
       >
         <!-- Title -->
         <Transition name="fade">
@@ -33,6 +33,32 @@
             </button>
           </div>
         </Transition>
+      </div>
+
+      <!-- Progress Bar (persis di bawah caption) -->
+      <div
+        v-if="!showOverlays"
+        class="mb-3"
+      >
+        <div
+          ref="progressBarRef"
+          class="relative w-full h-0.5 bg-white/20 cursor-pointer"
+          @mousedown="handleProgressDragStart"
+          @touchstart.stop.prevent="handleProgressDragStart"
+        >
+          <div
+            class="absolute left-0 top-0 h-full bg-white"
+            :class="isDraggingProgress ? '' : 'transition-all duration-100'"
+            :style="{ width: `${localPercentage}%` }"
+          ></div>
+
+          <!-- Draggable thumb (visible when dragging) -->
+          <div
+            v-if="isDraggingProgress"
+            class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
+            :style="{ left: `${localPercentage}%`, transform: 'translate(-50%, -50%)' }"
+          ></div>
+        </div>
       </div>
 
       <div class="flex items-center justify-between">
@@ -171,12 +197,70 @@
       type: Boolean,
       default: true,
     },
+    progressData: {
+      type: Object,
+      default: () => ({ currentTime: 0, duration: 0, percentage: 0, isDragging: false }),
+    },
   })
 
-  const emit = defineEmits(["select-episode", "close", "toggle-overlays"])
+  const emit = defineEmits(["select-episode", "close", "toggle-overlays", "seek-video"])
 
   const showPopup = ref(false)
   const showFullCaption = ref(false)
+  const progressBarRef = ref(null)
+  const isDraggingProgress = ref(false)
+  const localPercentage = ref(0)
+
+  // Watch progressData untuk update local percentage
+  watch(
+    () => props.progressData.percentage,
+    (newVal) => {
+      if (!isDraggingProgress.value) {
+        localPercentage.value = newVal
+      }
+    }
+  )
+
+  // Progress bar drag handlers
+  const handleProgressDragStart = (e) => {
+    if (!progressBarRef.value || !props.progressData.duration) return
+
+    isDraggingProgress.value = true
+
+    const handleDrag = (moveEvent) => {
+      if (!progressBarRef.value) return
+
+      moveEvent.preventDefault()
+
+      const rect = progressBarRef.value.getBoundingClientRect()
+      const clientX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX
+      const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+      const newTime = percent * props.progressData.duration
+
+      // Update local percentage for real-time visual feedback
+      localPercentage.value = percent * 100
+
+      emit("seek-video", newTime)
+    }
+
+    const handleDragEnd = () => {
+      isDraggingProgress.value = false
+
+      document.removeEventListener("mousemove", handleDrag)
+      document.removeEventListener("mouseup", handleDragEnd)
+      document.removeEventListener("touchmove", handleDrag)
+      document.removeEventListener("touchend", handleDragEnd)
+    }
+
+    // Initial seek
+    handleDrag(e)
+
+    // Add listeners
+    document.addEventListener("mousemove", handleDrag)
+    document.addEventListener("mouseup", handleDragEnd)
+    document.addEventListener("touchmove", handleDrag, { passive: false })
+    document.addEventListener("touchend", handleDragEnd)
+  }
 
   // Debug props
   watch(
