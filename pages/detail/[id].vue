@@ -32,6 +32,7 @@
         :current-episode-index="currentEpisodeIndex"
         :total-episodes="episodes.length"
         :current-episode="currentEpisode"
+        :drama-cover="drama?.cover || ''"
         :can-go-next="currentEpisodeIndex < episodes.length - 1"
         :can-go-previous="currentEpisodeIndex > 0"
         :available-qualities="availableQualities"

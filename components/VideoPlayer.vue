@@ -4,13 +4,84 @@
     class="relative w-full h-screen bg-black overflow-hidden"
     style="width: 100vw; height: 100dvh; height: 100vh; margin: 0; padding: 0"
   >
+    <!-- Preview Next Episode (di bawah) - Reactive position -->
+    <div
+      v-if="canGoNext"
+      class="absolute left-0 right-0 h-screen z-0"
+      :style="{
+        top: `calc(100vh + ${dragOffset}px)`,
+      }"
+    >
+      <img
+        v-if="props.dramaCover"
+        :src="props.dramaCover"
+        class="w-full h-full object-cover"
+        :style="{
+          filter: `blur(${Math.max(0, 20 - Math.abs(dragOffset) / 20)}px)`,
+          opacity: Math.min(1, Math.abs(dragOffset) / 200),
+        }"
+        alt="Next Episode"
+      />
+      <div
+        v-else
+        class="w-full h-full bg-gradient-to-br from-gray-900 to-black"
+        :style="{
+          opacity: Math.min(1, Math.abs(dragOffset) / 200),
+        }"
+      ></div>
+      <div
+        class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center"
+        :style="{
+          opacity: Math.min(1, Math.abs(dragOffset) / 150),
+        }"
+      >
+        <p class="text-white text-4xl font-bold">Episode {{ props.currentEpisodeIndex + 2 }}</p>
+      </div>
+    </div>
+
+    <!-- Preview Prev Episode (di atas) - Reactive position -->
+    <div
+      v-if="canGoPrevious"
+      class="absolute left-0 right-0 h-screen z-0"
+      :style="{
+        bottom: `calc(100vh - ${dragOffset}px)`,
+      }"
+    >
+      <img
+        v-if="props.dramaCover"
+        :src="props.dramaCover"
+        class="w-full h-full object-cover"
+        :style="{
+          filter: `blur(${Math.max(0, 20 - Math.abs(dragOffset) / 20)}px)`,
+          opacity: Math.min(1, Math.abs(dragOffset) / 200),
+        }"
+        alt="Previous Episode"
+      />
+      <div
+        v-else
+        class="w-full h-full bg-gradient-to-br from-gray-900 to-black"
+        :style="{
+          opacity: Math.min(1, Math.abs(dragOffset) / 200),
+        }"
+      ></div>
+      <div
+        class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center"
+        :style="{
+          opacity: Math.min(1, Math.abs(dragOffset) / 150),
+        }"
+      >
+        <p class="text-white text-4xl font-bold">Episode {{ props.currentEpisodeIndex }}</p>
+      </div>
+    </div>
+
     <!-- Draggable container - HANYA PLAYER -->
     <div
       ref="videoContainer"
       class="absolute inset-0 z-[1]"
       :style="{
         transform: `translateY(${dragOffset}px)`,
-        transition: isSwipeDragging ? 'none' : 'transform 0.3s ease-out',
+        opacity: isTransitioning ? 0 : 1,
+        transition: isSwipeDragging ? 'none' : isTransitioning ? 'opacity 0.3s ease-in-out' : 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
       }"
     >
       <!-- Plyr Player Container -->
@@ -428,6 +499,7 @@
   const isSwipeDragging = ref(false)
   const swipeThreshold = 300 // Threshold untuk next/prev (120px agar tidak terlalu sensitif)
   const videoContainer = ref(null)
+  const isTransitioning = ref(false) // Flag untuk episode transition
 
   const canGoNext = computed(() => props.canGoNext && props.currentEpisodeIndex < props.totalEpisodes - 1)
   const canGoPrevious = computed(() => props.canGoPrevious && props.currentEpisodeIndex > 0)
@@ -861,21 +933,45 @@
     const shouldSnapPrev = deltaY > swipeThreshold && canGoPrevious.value
 
     if (shouldSnapNext) {
-      // Snap ke next episode (swipe up)
+      // Snap ke next episode (swipe up) - slide ke atas lalu fade
       console.log("✅ Snap to next episode")
       dragOffset.value = -window.innerHeight
+
+      // Wait for slide animation, then fade out player
       setTimeout(() => {
-        goToNextEpisode()
-        dragOffset.value = 0
-      }, 300)
+        isTransitioning.value = true
+
+        // Fade out selesai, ganti episode
+        setTimeout(() => {
+          goToNextEpisode()
+          dragOffset.value = 0
+
+          // Fade in player baru
+          setTimeout(() => {
+            isTransitioning.value = false
+          }, 50)
+        }, 300)
+      }, 500)
     } else if (shouldSnapPrev) {
-      // Snap ke previous episode (swipe down)
+      // Snap ke previous episode (swipe down) - slide ke bawah lalu fade
       console.log("✅ Snap to previous episode")
       dragOffset.value = window.innerHeight
+
+      // Wait for slide animation, then fade out player
       setTimeout(() => {
-        goToPreviousEpisode()
-        dragOffset.value = 0
-      }, 300)
+        isTransitioning.value = true
+
+        // Fade out selesai, ganti episode
+        setTimeout(() => {
+          goToPreviousEpisode()
+          dragOffset.value = 0
+
+          // Fade in player baru
+          setTimeout(() => {
+            isTransitioning.value = false
+          }, 50)
+        }, 300)
+      }, 500)
     } else {
       // Snap back ke posisi awal (bounce back)
       console.log("⬅️ Snap back to original position")
