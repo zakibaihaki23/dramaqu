@@ -46,34 +46,7 @@
           <div class="bg-gray-900 rounded-lg overflow-hidden">
             <!-- Video Player -->
             <div class="relative aspect-video bg-black">
-              <!-- VIP Restricted Overlay -->
-              <div
-                v-if="!isVIP && currentVideoUrl"
-                class="absolute inset-0 z-10 bg-black/80 flex flex-col items-center justify-center gap-4"
-              >
-                <svg
-                  class="w-16 h-16 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  ></path>
-                </svg>
-                <p class="text-white text-lg font-semibold">VIP Access Required</p>
-                <p class="text-gray-400 text-sm text-center px-4">Enter VIP code to watch videos</p>
-                <button
-                  @click="showVIPModal = true"
-                  class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition"
-                >
-                  Enter VIP Code
-                </button>
-              </div>
-              
+              <!-- Video Player (only show if VIP) -->
               <video
                 v-if="currentVideoUrl && isVIP"
                 ref="videoPlayer"
@@ -84,17 +57,39 @@
               >
                 Your browser does not support the video tag.
               </video>
-              <div
-                v-else-if="!currentVideoUrl"
-                class="w-full h-full flex items-center justify-center text-gray-400"
-              >
-                <p>Select an episode to play</p>
-              </div>
+              
+              <!-- VIP Restricted Placeholder -->
               <div
                 v-else
-                class="w-full h-full flex items-center justify-center text-gray-400"
+                class="w-full h-full flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-gray-900 to-black p-8"
               >
-                <p>VIP access required</p>
+                <div class="flex flex-col items-center gap-4">
+                  <svg
+                    class="w-20 h-20 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    ></path>
+                  </svg>
+                  <div class="text-center">
+                    <p class="text-white text-xl font-bold mb-2">VIP Access Required</p>
+                    <p class="text-gray-400 text-sm mb-6 max-w-md">
+                      Unlock full access to watch all episodes in HD quality. Enter your VIP code to continue.
+                    </p>
+                  </div>
+                  <button
+                    @click="showVIPModal = true"
+                    class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition transform hover:scale-105 shadow-lg"
+                  >
+                    Join VIP
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -103,6 +98,10 @@
               <div v-if="currentEpisode">
                 <h3 class="text-lg font-semibold">{{ currentEpisode.chapterName }}</h3>
                 <p class="text-sm text-gray-400">Episode {{ currentEpisode.chapterIndex + 1 }}</p>
+              </div>
+              <div v-else>
+                <h3 class="text-lg font-semibold text-gray-400">No Episode Selected</h3>
+                <p class="text-sm text-gray-500">Select an episode to watch</p>
               </div>
 
               <!-- Quality Selector -->
@@ -139,6 +138,14 @@
                   VIP required to change quality
                 </p>
               </div>
+              <div v-else-if="!currentEpisode && !isVIP" class="pt-2">
+                <button
+                  @click="showVIPModal = true"
+                  class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition"
+                >
+                  Join VIP to Watch
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -146,7 +153,16 @@
         <!-- Episode List (Right - 1/3) -->
         <div class="lg:col-span-1">
           <div class="bg-gray-900 rounded-lg p-4">
-            <h3 class="text-lg font-semibold mb-3">Episodes ({{ episodes.length }})</h3>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-lg font-semibold">Episodes ({{ episodes.length }})</h3>
+              <button
+                v-if="!isVIP"
+                @click="showVIPModal = true"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+              >
+                Join VIP
+              </button>
+            </div>
             <div class="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
               <button
                 v-for="(episode, index) in episodes"
@@ -412,6 +428,8 @@
   // Check VIP status
   const checkVIP = async () => {
     try {
+      // Small delay to ensure service worker has processed the code
+      await new Promise(resolve => setTimeout(resolve, 100))
       isVIP.value = await checkVIPStatus()
     } catch (error) {
       console.error("Error checking VIP status:", error)
@@ -439,14 +457,30 @@
 
   // Handle VIP activated
   const handleVIPActivated = async () => {
+    // Update VIP status immediately
     await checkVIP()
-    if (isVIP.value && currentEpisode.value) {
-      // Re-select current episode to enable video
-      selectEpisode(currentEpisode.value, currentEpisodeIndex.value)
+    
+    // Use nextTick to ensure reactive updates are applied
+    await nextTick()
+    
+    if (isVIP.value) {
+      // If there's already a selected episode, re-select it to enable video
+      if (currentEpisode.value) {
+        selectEpisode(currentEpisode.value, currentEpisodeIndex.value)
+      } else if (episodes.value.length > 0) {
+        // Auto-select first episode if no episode is selected yet
+        selectEpisode(episodes.value[0], 0)
+      }
     }
   }
 
   const selectEpisode = (episode, index) => {
+    // Only allow episode selection if VIP
+    if (!isVIP.value) {
+      showVIPModal.value = true
+      return
+    }
+
     // Save progress before switching
     saveCurrentProgress()
 
@@ -490,6 +524,12 @@
   }
 
   const changeQuality = (quality) => {
+    // Only allow quality change if VIP
+    if (!isVIP.value) {
+      showVIPModal.value = true
+      return
+    }
+
     if (!currentEpisode.value) return
 
     const cdnList = currentEpisode.value.cdnList || []
@@ -544,11 +584,11 @@
       episodes.value = episodesData
       recommendations.value = recommendationsData.filter((r) => (r.bookId || r.id) != dramaId.value)
 
-      // Check for watch history (only if VIP)
-      if (isVIP.value) {
+      // Only auto-select episode if VIP
+      if (isVIP.value && episodes.value.length > 0) {
         const watchProgress = getWatchProgress(dramaId.value)
         
-        if (watchProgress && episodes.value.length > 0) {
+        if (watchProgress) {
           // Resume from last watched episode
           const episodeIndex = Math.min(watchProgress.episodeIndex, episodes.value.length - 1)
           selectEpisode(episodes.value[episodeIndex], episodeIndex)
@@ -559,10 +599,16 @@
               videoPlayer.value.currentTime = watchProgress.currentTime
             }
           })
-        } else if (episodes.value.length > 0) {
+        } else {
           // Auto-select first episode
           selectEpisode(episodes.value[0], 0)
         }
+      } else {
+        // Reset episode selection if not VIP
+        currentEpisode.value = null
+        currentEpisodeIndex.value = 0
+        currentVideoUrl.value = ""
+        availableQualities.value = []
       }
 
       // Setup auto-save progress every 5 seconds

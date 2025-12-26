@@ -1,4 +1,9 @@
 // Service Worker for VIP Code Management
+// Claim control immediately
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim())
+})
+
 const VIP_CODES = {
   // Admin code (unlimited use)
   'ADMIN2024': { type: 'admin', unlimited: true },
@@ -62,8 +67,9 @@ function validateCode(code) {
 
 // Check VIP status
 function checkVIPStatus() {
-  // If any code is used (including admin), user is VIP
-  return usedCodes.length > 0 || VIP_CODES['ADMIN2024'] // Admin always available
+  // User is VIP only if any code has been used (including admin)
+  // usedCodes will contain the hash of admin code if it was entered
+  return usedCodes.length > 0
 }
 
 // Listen for messages from main app

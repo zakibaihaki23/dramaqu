@@ -132,11 +132,12 @@
         success.value = result.message || "VIP access activated!"
         code.value = ""
         
-        // Wait a bit then close and emit activated
-        setTimeout(() => {
-          showModal.value = false
+        // Close modal and emit activated immediately (no delay for better UX)
+        showModal.value = false
+        // Use nextTick to ensure modal closes before emitting
+        nextTick(() => {
           emit("activated")
-        }, 1500)
+        })
       } else {
         error.value = result.message || "Invalid code. Please try again."
       }
