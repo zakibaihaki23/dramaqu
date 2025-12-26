@@ -33,24 +33,28 @@ pm2 start ecosystem.config.js
 ```
 
 **ecosystem.config.js:**
+
 ```javascript
 module.exports = {
-  apps: [{
-    name: 'dramaqu',
-    script: '.output/server/index.mjs',
-    instances: 1,
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    }
-  }]
+  apps: [
+    {
+      name: "dramaqu",
+      script: ".output/server/index.mjs",
+      instances: 1,
+      exec_mode: "cluster",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3000,
+      },
+    },
+  ],
 }
 ```
 
 ### Menggunakan Docker
 
 **Dockerfile:**
+
 ```dockerfile
 FROM node:18-alpine
 
@@ -95,7 +99,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        
+
         # CORS headers
         add_header Access-Control-Allow-Origin *;
         add_header Access-Control-Allow-Methods 'GET, POST, OPTIONS';
@@ -109,15 +113,17 @@ server {
 Jika API Anda sudah support CORS, Anda bisa langsung call API tanpa proxy:
 
 1. Buat file `.env`:
+
 ```env
 NUXT_PUBLIC_API_BASE_URL=https://dramabox.sansekai.my.id/api
 ```
 
 2. Update `nuxt.config.ts`:
+
 ```typescript
 runtimeConfig: {
   public: {
-    apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'https://dramabox.sansekai.my.id/api'
+    apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || "https://dramabox.sansekai.my.id/api"
   }
 }
 ```
@@ -155,3 +161,23 @@ curl http://localhost:3000/api/dramabox/foryou
 1. Pastikan route `/api/**` sudah ter-handle oleh server middleware
 2. Cek file `server/api/[...].ts` sudah ada
 
+### VIP System (IndexedDB)
+
+Sistem VIP menggunakan IndexedDB untuk menyimpan data VIP codes. Ini bekerja di HTTP dan HTTPS.
+
+1. **VIP Codes disimpan di IndexedDB:**
+
+   - Data disimpan dengan checksum untuk integrity
+   - Jika data diubah manual, checksum akan invalid dan data akan di-clear
+   - Codes disimpan sebagai hash (bukan plain text)
+
+2. **Clear VIP data (jika perlu):**
+
+   - Buka DevTools → Application → IndexedDB → VIP_DB
+   - Delete object store "vip"
+   - Refresh page
+
+3. **Troubleshooting:**
+   - Jika VIP tidak aktif setelah input code, cek browser console untuk error
+   - Pastikan IndexedDB didukung (semua browser modern mendukung)
+   - Jika ada masalah, clear IndexedDB dan coba lagi

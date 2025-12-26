@@ -350,8 +350,7 @@
   const videoPlayer = ref(null)
 
   // VIP Management
-  const { checkVIPStatus } = useVIP()
-  const isVIP = ref(false)
+  const { isVIP, checkVIPStatus } = useVIP()
   const showVIPModal = ref(false)
 
   // Watch history

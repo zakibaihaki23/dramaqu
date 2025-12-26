@@ -1,252 +1,373 @@
 // composables/useVIP.js
+import { ref } from "vue"
+
 export const useVIP = () => {
-  let swRegistration = null
-  let messageChannel = null
+  const isVIP = ref(false)
 
-  // Initialize service worker
-  const initServiceWorker = async () => {
-    if (typeof window === 'undefined') return null
+  // VIP Codes with duration (in days)
+  const VIP_CODES = {
+    // Admin code (unlimited use, duration tidak berpengaruh)
+    ADMIN2025: { type: "admin", unlimited: true, duration: 0 }, // 0 = unlimited
 
-    try {
-      if ('serviceWorker' in navigator) {
-        // Register service worker
-        const registration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/'
-        })
-        
-        swRegistration = registration
-        
-        // Wait for service worker to be ready
-        await navigator.serviceWorker.ready
-        
-        // Create message channel for communication
-        messageChannel = new MessageChannel()
-        
-        return registration
-      }
-    } catch (error) {
-      console.error('Service Worker registration failed:', error)
-      return null
-    }
+    // Normal codes (one-time use with duration in days)
+    TRIAL20251DAY: { type: "normal", unlimited: false, duration: 1 }, // 1 day
+    TRIAL20251DAY_001: { type: "normal", unlimited: false, duration: 1 }, // 2 days
   }
 
-  // Wait for service worker controller to be available
-  const waitForController = async (maxRetries = 30, delay = 100) => {
-    for (let i = 0; i < maxRetries; i++) {
-      if (navigator.serviceWorker.controller) {
-        return true
-      }
-      await new Promise(resolve => setTimeout(resolve, delay))
+  // Secret salt for checksum (change this for production)
+  const SECRET_SALT = "dramaqu_vip_2024_secret_salt_change_me"
+
+  // Hash function for code
+  const hashCode = (str) => {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash = (hash << 5) - hash + char
+      hash = hash & hash // Convert to 32bit integer
     }
-    return false
+    return hash.toString(36)
   }
 
-  // Send message to service worker
-  const sendMessage = (type, data = {}) => {
-    return new Promise(async (resolve, reject) => {
-      // Check if service worker is supported
-      if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
-        reject(new Error('Service Worker not supported'))
+  // Generate checksum for data integrity
+  const generateChecksum = (data) => {
+    // Create a string from data + secret salt
+    const dataStr = JSON.stringify(data) + SECRET_SALT
+    return hashCode(dataStr)
+  }
+
+  // Validate checksum
+  const validateChecksum = (data, checksum) => {
+    const expectedChecksum = generateChecksum(data)
+    return expectedChecksum === checksum
+  }
+
+  // Open IndexedDB
+  const openDB = () => {
+    return new Promise((resolve, reject) => {
+      if (typeof window === "undefined" || !("indexedDB" in window)) {
+        reject(new Error("IndexedDB not supported"))
         return
       }
 
-      // Ensure service worker is initialized
-      if (!swRegistration) {
-        await initServiceWorker()
-      }
+      const request = indexedDB.open("VIP_DB", 1)
 
-      // Wait for service worker to be ready
-      try {
-        await navigator.serviceWorker.ready
-      } catch (error) {
-        reject(new Error('Service Worker not ready'))
-        return
-      }
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
 
-      // Wait for controller to be available
-      let controllerAvailable = await waitForController(30, 100)
-      
-      // For VALIDATE_CODE, wait longer and try to activate service worker
-      if (!controllerAvailable && type === 'VALIDATE_CODE') {
-        // Try to update service worker
-        if (swRegistration) {
-          try {
-            await swRegistration.update()
-            await navigator.serviceWorker.ready
-            controllerAvailable = await waitForController(20, 100)
-          } catch (error) {
-            console.warn('Failed to update service worker:', error)
-          }
-        }
-      }
-      
-      if (!controllerAvailable) {
-        // If controller not available, return default values based on type
-        if (type === 'CHECK_VIP') {
-          resolve({ isVIP: false })
-          return
-        } else if (type === 'GET_STATUS') {
-          resolve({ isVIP: false, usedCount: 0 })
-          return
-        } else if (type === 'VALIDATE_CODE') {
-          // For validation, we need to reject with a clear message
-          reject(new Error('Service Worker controller not available. Please refresh the page and try again.'))
-          return
-        } else {
-          reject(new Error('Service Worker controller not available'))
-          return
-        }
-      }
-
-      const channel = new MessageChannel()
-      let resolved = false
-      
-      // Set timeout for message response
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true
-          channel.port1.close()
-          channel.port2.close()
-          // Return default values on timeout
-          if (type === 'CHECK_VIP') {
-            resolve({ isVIP: false })
-          } else if (type === 'GET_STATUS') {
-            resolve({ isVIP: false, usedCount: 0 })
-          } else {
-            reject(new Error('Service Worker message timeout'))
-          }
-        }
-      }, 5000)
-      
-      channel.port1.onmessage = (event) => {
-        if (!resolved) {
-          resolved = true
-          clearTimeout(timeout)
-          channel.port1.close()
-          channel.port2.close()
-          resolve(event.data)
-        }
-      }
-      
-      channel.port1.onmessageerror = (error) => {
-        if (!resolved) {
-          resolved = true
-          clearTimeout(timeout)
-          channel.port1.close()
-          channel.port2.close()
-          reject(error)
-        }
-      }
-
-      try {
-        navigator.serviceWorker.controller.postMessage(
-          { type, ...data },
-          [channel.port2]
-        )
-      } catch (error) {
-        if (!resolved) {
-          resolved = true
-          clearTimeout(timeout)
-          channel.port1.close()
-          channel.port2.close()
-          reject(error)
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result
+        if (!db.objectStoreNames.contains("vip")) {
+          db.createObjectStore("vip", { keyPath: "id" })
         }
       }
     })
   }
 
-  // Validate VIP code
-  const validateCode = async (code) => {
+  // Clear VIP data (if tampered)
+  const clearVIPData = async () => {
     try {
-      // Check if service worker is supported
-      if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
-        return { valid: false, message: 'Service Worker not supported' }
-      }
-
-      // Ensure service worker is initialized first
-      if (!swRegistration) {
-        await initServiceWorker()
-      }
-
-      // Wait for service worker to be ready
-      try {
-        await navigator.serviceWorker.ready
-      } catch (error) {
-        return { valid: false, message: 'Service Worker not ready. Please refresh the page.' }
-      }
-
-      // Wait longer for controller (important for validation)
-      let controllerAvailable = false
-      for (let i = 0; i < 50; i++) {
-        if (navigator.serviceWorker.controller) {
-          controllerAvailable = true
-          break
-        }
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-
-      if (!controllerAvailable) {
-        // Try to reload service worker
-        if (swRegistration) {
-          await swRegistration.update()
-          await navigator.serviceWorker.ready
-          
-          // Wait again after update
-          for (let i = 0; i < 20; i++) {
-            if (navigator.serviceWorker.controller) {
-              controllerAvailable = true
-              break
-            }
-            await new Promise(resolve => setTimeout(resolve, 100))
-          }
-        }
-
-        if (!controllerAvailable) {
-          return { valid: false, message: 'Service Worker not available. Please refresh the page and try again.' }
-        }
-      }
-
-      const result = await sendMessage('VALIDATE_CODE', { code })
-      return result || { valid: false, message: 'Invalid response' }
+      const db = await openDB()
+      const transaction = db.transaction(["vip"], "readwrite")
+      const store = transaction.objectStore("vip")
+      await store.delete("status")
     } catch (error) {
-      console.error('Error validating code:', error)
-      return { valid: false, message: 'Error validating code. Please refresh the page and try again.' }
+      console.error("Error clearing VIP data:", error)
     }
   }
 
   // Check VIP status
   const checkVIPStatus = async () => {
     try {
-      // Check if service worker is supported
-      if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+      if (typeof window === "undefined" || !("indexedDB" in window)) {
+        isVIP.value = false
         return false
       }
 
-      const result = await sendMessage('CHECK_VIP')
-      return result?.isVIP || false
+      const db = await openDB()
+      const transaction = db.transaction(["vip"], "readonly")
+      const store = transaction.objectStore("vip")
+      const request = store.get("status")
+
+      return new Promise((resolve) => {
+        request.onsuccess = () => {
+          const data = request.result
+
+          if (!data) {
+            isVIP.value = false
+            resolve(false)
+            return
+          }
+
+          // Validate checksum - if tampered, clear data
+          if (!validateChecksum(data, data.checksum)) {
+            console.warn("VIP data checksum invalid - clearing data")
+            clearVIPData()
+            isVIP.value = false
+            resolve(false)
+            return
+          }
+
+          // Check if has used codes and validate expiry
+          if (data.usedCodes && data.usedCodes.length > 0) {
+            const now = Date.now()
+            let hasValidCode = false
+
+            // Check each code for expiry
+            for (const codeEntry of data.usedCodes) {
+              // If unlimited (admin), always valid
+              if (codeEntry.unlimited) {
+                hasValidCode = true
+                break
+              }
+
+              // Check expiry for normal codes
+              if (codeEntry.expiry && codeEntry.expiry > now) {
+                hasValidCode = true
+                break
+              }
+            }
+
+            // Clean expired codes
+            if (!hasValidCode) {
+              // All codes expired, clear data
+              clearVIPData()
+              isVIP.value = false
+              resolve(false)
+              return
+            }
+
+            // Remove expired codes
+            const validCodes = data.usedCodes.filter((codeEntry) => {
+              if (codeEntry.unlimited) return true
+              return codeEntry.expiry && codeEntry.expiry > now
+            })
+
+            // Update if codes were removed
+            if (validCodes.length !== data.usedCodes.length) {
+              data.usedCodes = validCodes
+              data.checksum = generateChecksum(data)
+              // Save updated data (async, don't wait)
+              const db = openDB().then((db) => {
+                const transaction = db.transaction(["vip"], "readwrite")
+                const store = transaction.objectStore("vip")
+                store.put(data)
+              })
+            }
+
+            isVIP.value = true
+            resolve(true)
+          } else {
+            isVIP.value = false
+            resolve(false)
+          }
+        }
+
+        request.onerror = () => {
+          isVIP.value = false
+          resolve(false)
+        }
+      })
     } catch (error) {
-      // Silently fail and return false (non-VIP)
-      // Don't log error to avoid console spam
+      isVIP.value = false
       return false
+    }
+  }
+
+  // Validate VIP code
+  const validateCode = async (code) => {
+    try {
+      if (typeof window === "undefined" || !("indexedDB" in window)) {
+        return { valid: false, message: "IndexedDB not supported" }
+      }
+
+      const upperCode = code.toUpperCase().trim()
+
+      // Check if code exists
+      if (!VIP_CODES[upperCode]) {
+        return { valid: false, message: "Invalid code" }
+      }
+
+      const codeInfo = VIP_CODES[upperCode]
+      const codeHash = hashCode(upperCode)
+
+      // Open database
+      const db = await openDB()
+      const transaction = db.transaction(["vip"], "readwrite")
+      const store = transaction.objectStore("vip")
+
+      // Get current data
+      const getRequest = store.get("status")
+
+      return new Promise((resolve) => {
+        getRequest.onsuccess = () => {
+          let currentData = getRequest.result || { id: "status", usedCodes: [], timestamp: Date.now() }
+
+          // Validate existing data checksum
+          if (currentData.checksum && !validateChecksum(currentData, currentData.checksum)) {
+            // Data tampered, reset
+            currentData = { id: "status", usedCodes: [], timestamp: Date.now() }
+          }
+
+          // Ensure usedCodes is array of objects (migrate from old format if needed)
+          if (!Array.isArray(currentData.usedCodes)) {
+            currentData.usedCodes = []
+          }
+
+          // Migrate old format (array of strings) to new format (array of objects)
+          currentData.usedCodes = currentData.usedCodes
+            .map((code) => {
+              if (typeof code === "string") {
+                // Old format - check if it's admin code by checking all admin codes
+                let isAdmin = false
+                for (const [codeKey, codeInfo] of Object.entries(VIP_CODES)) {
+                  if (codeInfo.unlimited && code === hashCode(codeKey)) {
+                    isAdmin = true
+                    break
+                  }
+                }
+                return {
+                  hash: code,
+                  unlimited: isAdmin,
+                  expiry: isAdmin ? null : Date.now() + 86400000, // Default 1 day for old codes
+                }
+              }
+              // Already in new format, ensure it has all required fields
+              if (!code.hash) {
+                // Invalid format, skip
+                return null
+              }
+              return {
+                hash: code.hash,
+                unlimited: code.unlimited || false,
+                expiry: code.unlimited ? null : code.expiry || Date.now() + 86400000,
+              }
+            })
+            .filter((code) => code !== null) // Remove invalid entries
+
+          // Admin code - always valid (unlimited, no expiry)
+          if (codeInfo.type === "admin" && codeInfo.unlimited) {
+            // Check if admin code already exists
+            const existingAdmin = currentData.usedCodes.find((code) => code.hash === codeHash && code.unlimited === true)
+
+            if (!existingAdmin) {
+              // Add admin code (unlimited, no expiry)
+              currentData.usedCodes.push({
+                hash: codeHash,
+                unlimited: true,
+                expiry: null, // No expiry for unlimited
+              })
+            }
+            currentData.timestamp = Date.now()
+
+            // Generate new checksum
+            currentData.checksum = generateChecksum(currentData)
+
+            // Save to IndexedDB
+            const putRequest = store.put(currentData)
+            putRequest.onsuccess = () => {
+              isVIP.value = true
+              resolve({ valid: true, isAdmin: true, message: "VIP access activated!" })
+            }
+            putRequest.onerror = () => {
+              resolve({ valid: false, message: "Error saving code" })
+            }
+            return
+          }
+
+          // Normal code - check if already used
+          const existingCode = currentData.usedCodes.find((code) => code.hash === codeHash)
+          if (existingCode) {
+            // Check if code is still valid (not expired)
+            if (existingCode.expiry && existingCode.expiry > Date.now()) {
+              resolve({ valid: false, message: "Code already used" })
+              return
+            }
+            // Code expired, remove it and allow reuse
+            currentData.usedCodes = currentData.usedCodes.filter((code) => code.hash !== codeHash)
+          }
+
+          // Calculate expiry based on duration (in milliseconds)
+          const durationMs = codeInfo.duration * 24 * 60 * 60 * 1000 // Convert days to milliseconds
+          const expiry = Date.now() + durationMs
+
+          // Valid and not used (or expired) - add to used codes with expiry
+          currentData.usedCodes.push({
+            hash: codeHash,
+            unlimited: false,
+            expiry: expiry,
+          })
+          currentData.timestamp = Date.now()
+
+          // Generate new checksum
+          currentData.checksum = generateChecksum(currentData)
+
+          // Save to IndexedDB
+          const putRequest = store.put(currentData)
+          putRequest.onsuccess = () => {
+            isVIP.value = true
+            resolve({ valid: true, isAdmin: false, message: "VIP access activated!" })
+          }
+          putRequest.onerror = () => {
+            resolve({ valid: false, message: "Error saving code" })
+          }
+        }
+
+        getRequest.onerror = () => {
+          resolve({ valid: false, message: "Error checking code" })
+        }
+      })
+    } catch (error) {
+      console.error("Error validating code:", error)
+      return { valid: false, message: "Error validating code. Please try again." }
     }
   }
 
   // Get VIP status (with details)
   const getVIPStatus = async () => {
     try {
-      const result = await sendMessage('GET_STATUS')
-      return result || { isVIP: false, usedCount: 0 }
+      const db = await openDB()
+      const transaction = db.transaction(["vip"], "readonly")
+      const store = transaction.objectStore("vip")
+      const request = store.get("status")
+
+      return new Promise((resolve) => {
+        request.onsuccess = () => {
+          const data = request.result
+
+          if (!data) {
+            resolve({ isVIP: false, usedCount: 0 })
+            return
+          }
+
+          // Validate checksum
+          if (!validateChecksum(data, data.checksum)) {
+            resolve({ isVIP: false, usedCount: 0 })
+            return
+          }
+
+          // Count valid codes (not expired)
+          const now = Date.now()
+          const validCodes = (data.usedCodes || []).filter((codeEntry) => {
+            if (codeEntry.unlimited) return true
+            return codeEntry.expiry && codeEntry.expiry > now
+          })
+
+          resolve({ isVIP: validCodes.length > 0, usedCount: validCodes.length })
+        }
+
+        request.onerror = () => {
+          resolve({ isVIP: false, usedCount: 0 })
+        }
+      })
     } catch (error) {
-      console.error('Error getting VIP status:', error)
       return { isVIP: false, usedCount: 0 }
     }
   }
 
   return {
+    isVIP,
     validateCode,
     checkVIPStatus,
     getVIPStatus,
-    initServiceWorker,
   }
 }
-

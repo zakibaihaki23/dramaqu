@@ -22,6 +22,14 @@ export default defineNuxtConfig({
         prependPath: true,
       },
     },
+    // Ensure public assets are copied to output
+    publicAssets: [
+      {
+        baseURL: "/",
+        dir: "public",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      },
+    ],
   },
 
   app: {
