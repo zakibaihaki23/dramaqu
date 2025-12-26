@@ -30,8 +30,11 @@ export const useVIP = () => {
 
   // Generate checksum for data integrity
   const generateChecksum = (data) => {
+    // Create a copy without checksum field to avoid circular dependency
+    const dataCopy = { ...data }
+    delete dataCopy.checksum
     // Create a string from data + secret salt
-    const dataStr = JSON.stringify(data) + SECRET_SALT
+    const dataStr = JSON.stringify(dataCopy) + SECRET_SALT
     return hashCode(dataStr)
   }
 
@@ -99,12 +102,19 @@ export const useVIP = () => {
           }
 
           // Validate checksum - if tampered, clear data
-          if (!validateChecksum(data, data.checksum)) {
-            console.warn("VIP data checksum invalid - clearing data")
-            clearVIPData()
-            isVIP.value = false
-            resolve(false)
-            return
+          // Skip validation if data doesn't have checksum (new/empty data)
+          if (data.checksum) {
+            const isValid = validateChecksum(data, data.checksum)
+            if (!isValid) {
+              console.warn("VIP data checksum invalid - clearing data", {
+                expected: generateChecksum(data),
+                actual: data.checksum,
+              })
+              clearVIPData()
+              isVIP.value = false
+              resolve(false)
+              return
+            }
           }
 
           // Check if has used codes and validate expiry
@@ -201,48 +211,58 @@ export const useVIP = () => {
       return new Promise((resolve) => {
         getRequest.onsuccess = () => {
           let currentData = getRequest.result || { id: "status", usedCodes: [], timestamp: Date.now() }
+          let needsMigration = false
 
-          // Validate existing data checksum
-          if (currentData.checksum && !validateChecksum(currentData, currentData.checksum)) {
-            // Data tampered, reset
-            currentData = { id: "status", usedCodes: [], timestamp: Date.now() }
-          }
-
-          // Ensure usedCodes is array of objects (migrate from old format if needed)
+          // Ensure usedCodes is array
           if (!Array.isArray(currentData.usedCodes)) {
             currentData.usedCodes = []
+            needsMigration = true
+          }
+
+          // Check if migration needed (old format: array of strings)
+          if (currentData.usedCodes.length > 0 && typeof currentData.usedCodes[0] === "string") {
+            needsMigration = true
+          }
+
+          // Validate checksum only if data doesn't need migration
+          if (!needsMigration && currentData.checksum && !validateChecksum(currentData, currentData.checksum)) {
+            // Data tampered, reset
+            currentData = { id: "status", usedCodes: [], timestamp: Date.now() }
+            needsMigration = false
           }
 
           // Migrate old format (array of strings) to new format (array of objects)
-          currentData.usedCodes = currentData.usedCodes
-            .map((code) => {
-              if (typeof code === "string") {
-                // Old format - check if it's admin code by checking all admin codes
-                let isAdmin = false
-                for (const [codeKey, codeInfo] of Object.entries(VIP_CODES)) {
-                  if (codeInfo.unlimited && code === hashCode(codeKey)) {
-                    isAdmin = true
-                    break
+          if (needsMigration || currentData.usedCodes.some((code) => typeof code === "string" || !code.hash)) {
+            currentData.usedCodes = currentData.usedCodes
+              .map((code) => {
+                if (typeof code === "string") {
+                  // Old format - check if it's admin code by checking all admin codes
+                  let isAdmin = false
+                  for (const [codeKey, codeInfo] of Object.entries(VIP_CODES)) {
+                    if (codeInfo.unlimited && code === hashCode(codeKey)) {
+                      isAdmin = true
+                      break
+                    }
+                  }
+                  return {
+                    hash: code,
+                    unlimited: isAdmin,
+                    expiry: isAdmin ? null : Date.now() + 86400000, // Default 1 day for old codes
                   }
                 }
-                return {
-                  hash: code,
-                  unlimited: isAdmin,
-                  expiry: isAdmin ? null : Date.now() + 86400000, // Default 1 day for old codes
+                // Already in new format, ensure it has all required fields
+                if (!code.hash) {
+                  // Invalid format, skip
+                  return null
                 }
-              }
-              // Already in new format, ensure it has all required fields
-              if (!code.hash) {
-                // Invalid format, skip
-                return null
-              }
-              return {
-                hash: code.hash,
-                unlimited: code.unlimited || false,
-                expiry: code.unlimited ? null : code.expiry || Date.now() + 86400000,
-              }
-            })
-            .filter((code) => code !== null) // Remove invalid entries
+                return {
+                  hash: code.hash,
+                  unlimited: code.unlimited || false,
+                  expiry: code.unlimited ? null : code.expiry || Date.now() + 86400000,
+                }
+              })
+              .filter((code) => code !== null) // Remove invalid entries
+          }
 
           // Admin code - always valid (unlimited, no expiry)
           if (codeInfo.type === "admin" && codeInfo.unlimited) {
@@ -259,16 +279,18 @@ export const useVIP = () => {
             }
             currentData.timestamp = Date.now()
 
-            // Generate new checksum
-            currentData.checksum = generateChecksum(currentData)
+            // Generate new checksum (before saving)
+            const dataToSave = { ...currentData }
+            dataToSave.checksum = generateChecksum(dataToSave)
 
             // Save to IndexedDB
-            const putRequest = store.put(currentData)
+            const putRequest = store.put(dataToSave)
             putRequest.onsuccess = () => {
               isVIP.value = true
               resolve({ valid: true, isAdmin: true, message: "VIP access activated!" })
             }
-            putRequest.onerror = () => {
+            putRequest.onerror = (error) => {
+              console.error("Error saving admin code:", error)
               resolve({ valid: false, message: "Error saving code" })
             }
             return
@@ -298,16 +320,18 @@ export const useVIP = () => {
           })
           currentData.timestamp = Date.now()
 
-          // Generate new checksum
-          currentData.checksum = generateChecksum(currentData)
+          // Generate new checksum (before saving)
+          const dataToSave = { ...currentData }
+          dataToSave.checksum = generateChecksum(dataToSave)
 
           // Save to IndexedDB
-          const putRequest = store.put(currentData)
+          const putRequest = store.put(dataToSave)
           putRequest.onsuccess = () => {
             isVIP.value = true
             resolve({ valid: true, isAdmin: false, message: "VIP access activated!" })
           }
-          putRequest.onerror = () => {
+          putRequest.onerror = (error) => {
+            console.error("Error saving normal code:", error)
             resolve({ valid: false, message: "Error saving code" })
           }
         }
