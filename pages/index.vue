@@ -11,38 +11,12 @@
     <!-- Continue Watching Section -->
     <section
       v-if="continueWatching.length > 0"
-      class="px-4 pb-6"
+      class="pb-6"
     >
-      <h2 class="text-2xl font-bold mb-4">Continue Watching</h2>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <NuxtLink
-          v-for="item in continueWatching"
-          :key="item.dramaId"
-          :to="`/detail/${item.dramaId}`"
-          class="group relative"
-        >
-          <div class="relative overflow-hidden rounded-lg bg-gray-900">
-            <img
-              :src="item.dramaCover"
-              :alt="item.dramaName"
-              class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
-            />
-            <!-- Progress Bar -->
-            <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
-              <div
-                class="h-full bg-red-600"
-                :style="{ width: `${((item.episodeIndex + 1) / item.totalEpisodes) * 100}%` }"
-              ></div>
-            </div>
-            <!-- Episode Info Overlay -->
-            <div class="absolute top-2 right-2 bg-black/80 backdrop-blur-sm px-2 py-1 rounded text-xs">
-              EP {{ item.episodeIndex + 1 }}/{{ item.totalEpisodes }}
-            </div>
-          </div>
-          <p class="text-white text-sm font-medium mt-2 line-clamp-2">{{ item.dramaName }}</p>
-          <p class="text-gray-400 text-xs">{{ item.episodeName }}</p>
-        </NuxtLink>
-      </div>
+      <ContinueWatchingCarousel
+        title="Continue Watching"
+        :items="continueWatching"
+      />
     </section>
 
     <!-- Loading State -->
@@ -140,15 +114,26 @@
       // Load watch history and enrich with total episodes
       const history = getWatchHistory().slice(0, 8)
       
-      // Enrich history with total episodes from drama data
+      // Enrich history with total episodes and cover from drama data
       for (const item of history) {
-        // Try to find drama in fetched data to get total episodes
+        // Try to find drama in fetched data to get total episodes and cover
         const dramaData = [...forYou.value, ...latest.value, ...trending.value, ...random.value].find(
           (d) => (d.bookId || d.id) == item.dramaId
         )
         
-        if (dramaData && dramaData.totalChapterNum) {
-          item.totalEpisodes = dramaData.totalChapterNum
+        if (dramaData) {
+          // Update total episodes
+          if (dramaData.totalChapterNum) {
+            item.totalEpisodes = dramaData.totalChapterNum
+          }
+          // Update cover if missing
+          if (!item.dramaCover || item.dramaCover === '') {
+            item.dramaCover = dramaData.bookCover || dramaData.coverWap || dramaData.image || dramaData.poster || ''
+          }
+          // Update name if missing
+          if (!item.dramaName || item.dramaName === '') {
+            item.dramaName = dramaData.bookName || dramaData.title || ''
+          }
         } else if (!item.totalEpisodes || item.totalEpisodes === 0) {
           // If still no total episodes, try to fetch from API
           try {

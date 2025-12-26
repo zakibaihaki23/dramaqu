@@ -2,7 +2,7 @@
   <Transition name="fade">
     <div
       v-if="show"
-      class="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      class="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-sm"
       @click.self="handleClose"
     >
       <div

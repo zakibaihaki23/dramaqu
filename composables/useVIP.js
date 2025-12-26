@@ -124,22 +124,27 @@ export const useVIP = () => {
 
             // Check each code for expiry
             for (const codeEntry of data.usedCodes) {
-              // If unlimited (admin), always valid
-              if (codeEntry.unlimited) {
+              // If unlimited (admin), always valid - check explicitly for true
+              if (codeEntry.unlimited === true) {
+                console.log("VIP Status: Found unlimited code:", codeEntry)
                 hasValidCode = true
                 break
               }
 
               // Check expiry for normal codes
               if (codeEntry.expiry && codeEntry.expiry > now) {
+                console.log("VIP Status: Found valid code with expiry:", codeEntry)
                 hasValidCode = true
                 break
               }
             }
 
+            console.log("VIP Status check result:", { hasValidCode, usedCodes: data.usedCodes, checksum: data.checksum })
+
             // Clean expired codes
             if (!hasValidCode) {
               // All codes expired, clear data
+              console.log("VIP Status: No valid codes found, clearing data")
               clearVIPData()
               isVIP.value = false
               resolve(false)

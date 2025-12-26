@@ -1,27 +1,35 @@
 <template>
-  <div class="bg-black text-white min-h-screen pb-20">
-    <!-- Back Button -->
-    <div class="sticky top-0 z-40 bg-black/95 backdrop-blur-sm border-b border-gray-800 px-4 py-3">
-      <button
-        @click="$router.back()"
-        class="flex items-center gap-2 text-red-600 hover:text-red-500 transition"
+  <div
+    class="bg-black text-white fixed inset-0 overflow-hidden"
+    style="height: 100vh; width: 100vw"
+  >
+    <!-- Back Button (Overlay) - Fade out when playing -->
+    <Transition name="fade">
+      <div
+        v-if="!isPlayerPlaying"
+        class="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/80 to-transparent px-4 py-3"
       >
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+        <button
+          @click="$router.back()"
+          class="flex items-center gap-2 text-white hover:text-gray-300 transition bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 19l-7-7 7-7"
-          ></path>
-        </svg>
-        Back
-      </button>
-    </div>
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            ></path>
+          </svg>
+          <span class="text-sm font-medium">Back</span>
+        </button>
+      </div>
+    </Transition>
 
     <!-- Loading -->
     <LoadingSpinner
@@ -32,299 +40,139 @@
     <!-- Error -->
     <div
       v-if="error"
-      class="px-4 py-4 bg-red-900 bg-opacity-50 text-red-200 rounded-lg m-4"
+      class="absolute inset-0 flex items-center justify-center bg-black"
     >
-      {{ error }}
-    </div>
-
-    <!-- Drama Details -->
-    <div v-if="!loading && drama">
-      <!-- Video Player & Episode List Section -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 px-4 pt-4">
-        <!-- Video Player (Left - 2/3) -->
-        <div class="lg:col-span-2">
-          <div class="bg-gray-900 rounded-lg overflow-hidden">
-            <!-- Video Player -->
-            <div class="relative aspect-video bg-black">
-              <!-- Video Player (only show if VIP) -->
-              <video
-                v-if="currentVideoUrl && isVIP"
-                ref="videoPlayer"
-                :src="currentVideoUrl"
-                controls
-                class="w-full h-full"
-                @ended="playNextEpisode"
-              >
-                Your browser does not support the video tag.
-              </video>
-              
-              <!-- VIP Restricted Placeholder -->
-              <div
-                v-else
-                class="w-full h-full flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-gray-900 to-black p-8"
-              >
-                <div class="flex flex-col items-center gap-4">
-                  <svg
-                    class="w-20 h-20 text-red-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    ></path>
-                  </svg>
-                  <div class="text-center">
-                    <p class="text-white text-xl font-bold mb-2">VIP Access Required</p>
-                    <p class="text-gray-400 text-sm mb-6 max-w-md">
-                      Unlock full access to watch all episodes in HD quality. Enter your VIP code to continue.
-                    </p>
-                  </div>
-                  <button
-                    @click="showVIPModal = true"
-                    class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition transform hover:scale-105 shadow-lg"
-                  >
-                    Join VIP
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Episode Info & Quality Selector -->
-            <div class="p-4 space-y-3">
-              <div v-if="currentEpisode">
-                <h3 class="text-lg font-semibold">{{ currentEpisode.chapterName }}</h3>
-                <p class="text-sm text-gray-400">Episode {{ currentEpisode.chapterIndex + 1 }}</p>
-              </div>
-              <div v-else>
-                <h3 class="text-lg font-semibold text-gray-400">No Episode Selected</h3>
-                <p class="text-sm text-gray-500">Select an episode to watch</p>
-              </div>
-
-              <!-- Quality Selector -->
-              <div v-if="availableQualities.length > 0">
-                <label class="text-sm text-gray-400 block mb-2">Quality:</label>
-                <div class="flex gap-2 flex-wrap">
-                  <button
-                    v-for="quality in availableQualities"
-                    :key="quality"
-                    @click="handleQualityClick(quality)"
-                    :disabled="!isVIP"
-                    class="px-3 py-1 rounded text-sm font-medium transition relative"
-                    :class="!isVIP ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50' : selectedQuality === quality ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'"
-                  >
-                    {{ quality }}p
-                    <svg
-                      v-if="!isVIP"
-                      class="absolute -top-1 -right-1 w-4 h-4 text-red-600"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                        clip-rule="evenodd"
-                      ></path>
-                    </svg>
-                  </button>
-                </div>
-                <p
-                  v-if="!isVIP"
-                  class="text-xs text-gray-500 mt-2"
-                >
-                  VIP required to change quality
-                </p>
-              </div>
-              <div v-else-if="!currentEpisode && !isVIP" class="pt-2">
-                <button
-                  @click="showVIPModal = true"
-                  class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition"
-                >
-                  Join VIP to Watch
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Episode List (Right - 1/3) -->
-        <div class="lg:col-span-1">
-          <div class="bg-gray-900 rounded-lg p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-semibold">Episodes ({{ episodes.length }})</h3>
-              <button
-                v-if="!isVIP"
-                @click="showVIPModal = true"
-                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-              >
-                Join VIP
-              </button>
-            </div>
-            <div class="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
-              <button
-                v-for="(episode, index) in episodes"
-                :key="episode.chapterId"
-                @click="handleEpisodeClick(episode, index)"
-                :disabled="!isVIP"
-                class="w-full text-left p-3 rounded-lg transition flex items-center gap-3 relative"
-                :class="!isVIP ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed opacity-60' : currentEpisodeIndex === index ? 'bg-red-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'"
-              >
-                <div class="flex-shrink-0">
-                  <img
-                    v-if="episode.chapterImg"
-                    :src="episode.chapterImg"
-                    :alt="episode.chapterName"
-                    class="w-16 h-12 object-cover rounded"
-                  />
-                  <div
-                    v-else
-                    class="w-16 h-12 bg-gray-700 rounded flex items-center justify-center text-xs"
-                  >
-                    EP {{ index + 1 }}
-                  </div>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="font-medium truncate">{{ episode.chapterName }}</p>
-                  <p class="text-xs opacity-75">Episode {{ episode.chapterIndex + 1 }}</p>
-                </div>
-                <svg
-                  v-if="!isVIP"
-                  class="w-5 h-5 text-red-600 flex-shrink-0"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                    clip-rule="evenodd"
-                  ></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Drama Info Section -->
-      <div class="px-4 py-6 space-y-6">
-        <!-- Title & Stats -->
-        <div>
-          <h1 class="text-3xl font-bold text-white mb-3">{{ drama?.bookName || drama?.title }}</h1>
-          <div class="flex gap-2 text-sm text-gray-400 flex-wrap">
-            <span
-              v-if="drama?.playCount"
-              class="bg-gray-800 px-3 py-1 rounded"
-            >
-              👁️ {{ drama?.playCount }}
-            </span>
-            <span
-              v-if="drama?.totalChapterNum"
-              class="bg-gray-800 px-3 py-1 rounded"
-            >
-              📺 {{ drama?.totalChapterNum }} Episodes
-            </span>
-            <span
-              v-if="drama?.bookStatus"
-              class="bg-gray-800 px-3 py-1 rounded"
-            >
-              {{ drama?.bookStatus === 1 ? '🔄 Ongoing' : '✅ Completed' }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Synopsis -->
-        <div>
-          <h3 class="text-lg font-semibold mb-2">Synopsis</h3>
-          <p class="text-gray-300 leading-relaxed">
-            {{ drama?.introduction || drama?.description || drama?.synopsis || "No description available." }}
-          </p>
-        </div>
-
-        <!-- Tags -->
-        <div v-if="drama?.tags && drama.tags.length > 0">
-          <h3 class="text-lg font-semibold mb-2">Tags</h3>
-          <div class="flex gap-2 flex-wrap">
-            <span
-              v-for="(tag, idx) in drama.tags"
-              :key="idx"
-              class="text-xs bg-gray-800 px-3 py-1 rounded"
-            >
-              {{ tag }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Info Grid -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-gray-900 p-4 rounded-lg">
-            <p class="text-gray-400 text-sm mb-1">Total Episodes</p>
-            <p class="text-white font-semibold">{{ drama?.totalChapterNum || episodes.length || "N/A" }}</p>
-          </div>
-          <div class="bg-gray-900 p-4 rounded-lg">
-            <p class="text-gray-400 text-sm mb-1">Views</p>
-            <p class="text-white font-semibold">{{ drama?.playCount || "N/A" }}</p>
-          </div>
-          <div class="bg-gray-900 p-4 rounded-lg">
-            <p class="text-gray-400 text-sm mb-1">In Library</p>
-            <p class="text-white font-semibold">{{ drama?.inLibraryCount ? (drama.inLibraryCount / 1000000).toFixed(1) + "M" : "N/A" }}</p>
-          </div>
-          <div class="bg-gray-900 p-4 rounded-lg">
-            <p class="text-gray-400 text-sm mb-1">Country</p>
-            <p class="text-white font-semibold">{{ drama?.country || "N/A" }}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recommendations Section -->
-      <div
-        v-if="recommendations.length > 0"
-        class="px-4 py-6"
-      >
-        <h2 class="text-2xl font-bold mb-4">You May Also Like</h2>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          <NuxtLink
-            v-for="rec in recommendations"
-            :key="rec.bookId || rec.id"
-            :to="`/detail/${rec.bookId || rec.id}`"
-            class="group"
-          >
-            <div class="relative overflow-hidden rounded-lg bg-gray-900">
-              <img
-                :src="rec?.bookCover || rec?.coverWap || rec?.image || rec?.poster"
-                :alt="rec?.bookName || rec?.title"
-                class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
-              />
-              <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                <p class="text-white text-sm font-semibold line-clamp-2">{{ rec?.bookName || rec?.title }}</p>
-                <p
-                  v-if="rec?.playCount"
-                  class="text-gray-300 text-xs mt-1"
-                >
-                  👁️ {{ rec.playCount }}
-                </p>
-              </div>
-            </div>
-            <p class="text-white text-sm font-medium mt-2 line-clamp-2">{{ rec?.bookName || rec?.title }}</p>
-          </NuxtLink>
-        </div>
+      <div class="px-4 py-4 bg-red-900 bg-opacity-50 text-red-200 rounded-lg m-4">
+        {{ error }}
       </div>
     </div>
 
-    <!-- Not Found -->
+    <!-- Full Screen Video Player -->
     <div
-      v-if="!loading && !drama"
-      class="px-4 py-8 text-center"
+      v-if="!loading && drama"
+      class="w-full h-full"
     >
-      <p class="text-gray-400">Drama not found</p>
+      <!-- Video Player (TikTok-like Portrait Mode) -->
+      <VideoPlayer
+        v-if="currentVideoUrl && isVIPComputed"
+        ref="videoPlayer"
+        :src="currentVideoUrl"
+        :current-episode-index="currentEpisodeIndex"
+        :total-episodes="episodes.length"
+        :current-episode="currentEpisode"
+        :can-go-next="currentEpisodeIndex < episodes.length - 1"
+        :can-go-previous="currentEpisodeIndex > 0"
+        :available-qualities="availableQualities"
+        :selected-quality="selectedQuality"
+        :initial-time="savedCurrentTime"
+        @next-episode="playNextEpisode"
+        @previous-episode="playPreviousEpisode"
+        @ended="playNextEpisode"
+        @timeupdate="handleTimeUpdate"
+        @quality-change="changeQuality"
+        @play="isPlayerPlaying = true"
+        @pause="isPlayerPlaying = false"
+      />
+
+      <!-- VIP Restricted Placeholder - Overlay yang block screen -->
+      <div
+        v-if="!isVIPComputed"
+        class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
+      >
+        <!-- Back Button (Only visible in overlay) -->
+        <button
+          @click="$router.back()"
+          class="absolute top-4 left-4 flex items-center gap-2 text-white hover:text-gray-300 transition bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg z-[201]"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            ></path>
+          </svg>
+          <span class="text-sm font-medium">Back</span>
+        </button>
+
+        <!-- VIP Content -->
+        <div class="flex flex-col items-center gap-4 px-8">
+          <svg
+            class="w-20 h-20 text-red-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            ></path>
+          </svg>
+          <div class="text-center">
+            <p class="text-white text-xl font-bold mb-2">VIP Access Required</p>
+            <p class="text-gray-400 text-sm mb-6 max-w-md">Unlock full access to watch all episodes in HD quality. Enter your VIP code to continue.</p>
+          </div>
+          <button
+            @click="showVIPModal = true"
+            class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition transform hover:scale-105 shadow-lg relative z-[202]"
+          >
+            Join VIP
+          </button>
+        </div>
+      </div>
+
+      <!-- Episode Selector (Bottom Bar) - Show when paused -->
+      <Transition name="fade">
+        <EpisodeSelector
+          v-if="episodes.length > 0 && !isPlayerPlaying"
+          :episodes="episodes"
+          :current-episode-index="currentEpisodeIndex"
+          :total-episodes="episodes.length"
+          :is-vip="isVIPComputed"
+          :drama-title="drama ? drama.bookName || drama.title || '' : ''"
+          :drama-caption="drama ? drama.introduction || drama.description || drama.synopsis || '' : ''"
+          :is-playing="isPlayerPlaying"
+          :show-overlays="showAllOverlays"
+          :key="`episode-selector-${isVIP}-${episodes.length}-${showAllOverlays}`"
+          @select-episode="handleEpisodeClick"
+          @toggle-overlays="showAllOverlays = !showAllOverlays"
+        />
+      </Transition>
+
+      <!-- Show Overlays Button (Bottom Right) - Show when overlays hidden -->
+      <Transition name="fade">
+        <button
+          v-if="!showAllOverlays"
+          @click="showAllOverlays = true"
+          class="absolute bottom-4 right-4 z-50 text-white hover:text-gray-300 transition bg-black/60 backdrop-blur-sm p-3 rounded-full"
+        >
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </Transition>
     </div>
 
     <!-- VIP Code Modal -->
     <VIPCodeModal
       v-model:show="showVIPModal"
-      :force-input="false"
       @activated="handleVIPActivated"
     />
   </div>
@@ -332,48 +180,127 @@
 
 <script setup>
   import { ref, onMounted, watch, nextTick, computed, onUnmounted } from "vue"
+  import { useRoute } from "vue-router"
   import axios from "axios"
 
   const route = useRoute()
-  const dramaId = computed(() => route.params.id)
+  // Get ID from URL params (ensure it's a string)
+  const dramaId = computed(() => {
+    const id = route.params.id
+    // Ensure it's a string and handle array case
+    return Array.isArray(id) ? id[0] : String(id)
+  })
   const loading = ref(true)
   const error = ref(null)
   const drama = ref(null)
   const episodes = ref([])
-  const recommendations = ref([])
-  
+
   const currentEpisode = ref(null)
   const currentEpisodeIndex = ref(0)
   const currentVideoUrl = ref("")
   const selectedQuality = ref(1080)
   const availableQualities = ref([])
   const videoPlayer = ref(null)
+  const isPlayerPlaying = ref(false)
+  const savedCurrentTime = ref(0)
+  const showAllOverlays = ref(true) // Control untuk show/hide semua overlay
 
   // VIP Management
   const { isVIP, checkVIPStatus } = useVIP()
   const showVIPModal = ref(false)
 
+  // Computed untuk memastikan isVIP reactive di template
+  const isVIPComputed = computed(() => {
+    const vip = Boolean(isVIP.value)
+    console.log("Detail page isVIPComputed:", vip, "isVIP.value:", isVIP.value)
+    return vip
+  })
+
+  // Watch isVIP untuk debug
+  watch(
+    isVIP,
+    (newVal, oldVal) => {
+      console.log("Detail page isVIP changed:", { old: oldVal, new: newVal })
+    },
+    { immediate: true }
+  )
+
   // Watch history
   const { saveWatchProgress, getWatchProgress } = useWatchHistory()
   let progressSaveInterval = null
+
+  // Network speed detection for auto quality
+  const { getRecommendedQuality } = useNetworkSpeed()
 
   // Menggunakan proxy lokal untuk mengatasi CORS
   const BASE_URL = "/api"
 
   const fetchDramaDetails = async (id) => {
     try {
-      // Fetch drama details from foryou endpoint
+      // Ensure ID is string
+      const searchId = String(id)
+      console.log("Fetching drama details for ID:", searchId)
+
+      // Try to fetch from detail endpoint first (if exists)
+      try {
+        const detailResponse = await axios.get(`${BASE_URL}/dramabox/detail`, {
+          params: { bookId: searchId },
+        })
+        // Handle different response structures: data.book or data.data or data directly
+        let dramaData = null
+        if (detailResponse.data?.data?.book) {
+          // Structure: { data: { book: {...} } }
+          dramaData = detailResponse.data.data.book
+        } else if (detailResponse.data?.book) {
+          // Structure: { book: {...} }
+          dramaData = detailResponse.data.book
+        } else if (detailResponse.data?.data) {
+          // Structure: { data: {...} }
+          dramaData = detailResponse.data.data
+        } else if (detailResponse.data) {
+          // Structure: {...} directly
+          dramaData = detailResponse.data
+        }
+
+        if (dramaData) {
+          console.log("Found drama from detail endpoint:", dramaData.bookName || dramaData.title)
+          console.log("Drama data bookId:", dramaData.bookId, "id:", dramaData.id)
+          // Ensure bookId exists in the returned data - use searchId if not present
+          if (!dramaData.bookId && !dramaData.id) {
+            console.warn("Detail endpoint returned data without bookId/id, using searchId:", searchId)
+            dramaData.bookId = searchId
+          } else if (!dramaData.bookId && dramaData.id) {
+            // If only id exists, use it as bookId
+            dramaData.bookId = dramaData.id
+          }
+          return dramaData
+        }
+      } catch (detailErr) {
+        console.log("Detail endpoint not available, falling back to foryou:", detailErr.message)
+      }
+
+      // Fallback: Fetch from foryou endpoint
       const response = await axios.get(`${BASE_URL}/dramabox/foryou`)
       const allDramas = response.data?.data || response.data || []
 
-      // Find drama by ID
-      let foundDrama = allDramas.find((d) => (d.bookId || d.id) == id)
+      // Find drama by ID - try multiple ID fields
+      let foundDrama = allDramas.find((d) => {
+        const bookId = String(d.bookId || "")
+        const idField = String(d.id || "")
+        return bookId === searchId || idField === searchId
+      })
 
-      if (!foundDrama && allDramas.length > 0) {
-        // Fallback to first drama if not found
-        foundDrama = allDramas[0]
+      if (!foundDrama) {
+        console.warn(
+          "Drama not found with ID:",
+          searchId,
+          "Available IDs:",
+          allDramas.slice(0, 5).map((d) => ({ bookId: d.bookId, id: d.id }))
+        )
+        return null
       }
 
+      console.log("Found drama:", foundDrama.bookName || foundDrama.title, "ID:", foundDrama.bookId || foundDrama.id)
       return foundDrama
     } catch (err) {
       console.error("Error fetching drama details:", err)
@@ -383,99 +310,32 @@
 
   const fetchEpisodes = async (bookId) => {
     try {
+      // Validate bookId
+      if (!bookId) {
+        console.error("fetchEpisodes called without bookId")
+        return []
+      }
+
+      console.log("Calling allepisode with bookId:", bookId)
       const response = await axios.get(`${BASE_URL}/dramabox/allepisode`, {
-        params: { bookId: bookId },
+        params: { bookId: String(bookId) },
       })
 
       const episodesData = response.data?.data || response.data || []
       return Array.isArray(episodesData) ? episodesData : [episodesData]
     } catch (err) {
       console.error("Error fetching episodes:", err)
-      return []
-    }
-  }
-
-  const fetchRecommendations = async () => {
-    try {
-      const response = await axios.get(`${BASE_URL}/dramabox/foryou`)
-      const data = response.data?.data || response.data || []
-      return Array.isArray(data) ? data.slice(0, 10) : []
-    } catch (err) {
-      console.error("Error fetching recommendations:", err)
-      return []
-    }
-  }
-
-  const saveCurrentProgress = () => {
-    if (currentEpisode.value && drama.value && videoPlayer.value) {
-      const currentTime = videoPlayer.value.currentTime || 0
-      // Ensure drama data includes total episodes from episodes array
-      const dramaDataWithEpisodes = {
-        ...drama.value,
-        totalChapterNum: drama.value.totalChapterNum || episodes.value.length,
+      if (err.response) {
+        console.error("Response status:", err.response.status)
+        console.error("Response data:", err.response.data)
       }
-      saveWatchProgress(
-        dramaId.value,
-        dramaDataWithEpisodes,
-        currentEpisodeIndex.value,
-        currentEpisode.value,
-        currentTime
-      )
-    }
-  }
-
-  // Check VIP status
-  const checkVIP = async () => {
-    try {
-      // Small delay to ensure service worker has processed the code
-      await new Promise(resolve => setTimeout(resolve, 100))
-      isVIP.value = await checkVIPStatus()
-    } catch (error) {
-      console.error("Error checking VIP status:", error)
-      isVIP.value = false
-    }
-  }
-
-  // Handle episode click with VIP check
-  const handleEpisodeClick = (episode, index) => {
-    if (!isVIP.value) {
-      showVIPModal.value = true
-      return
-    }
-    selectEpisode(episode, index)
-  }
-
-  // Handle quality click with VIP check
-  const handleQualityClick = (quality) => {
-    if (!isVIP.value) {
-      showVIPModal.value = true
-      return
-    }
-    changeQuality(quality)
-  }
-
-  // Handle VIP activated
-  const handleVIPActivated = async () => {
-    // Update VIP status immediately
-    await checkVIP()
-    
-    // Use nextTick to ensure reactive updates are applied
-    await nextTick()
-    
-    if (isVIP.value) {
-      // If there's already a selected episode, re-select it to enable video
-      if (currentEpisode.value) {
-        selectEpisode(currentEpisode.value, currentEpisodeIndex.value)
-      } else if (episodes.value.length > 0) {
-        // Auto-select first episode if no episode is selected yet
-        selectEpisode(episodes.value[0], 0)
-      }
+      return []
     }
   }
 
   const selectEpisode = (episode, index) => {
-    // Only allow episode selection if VIP
-    if (!isVIP.value) {
+    // Only allow if VIP
+    if (!isVIPComputed.value) {
       showVIPModal.value = true
       return
     }
@@ -492,39 +352,57 @@
       const videoPathList = cdnList[0].videoPathList || []
       availableQualities.value = videoPathList.map((v) => v.quality).sort((a, b) => b - a)
 
-      // Find default quality or use 1080p
-      const defaultVideo = videoPathList.find((v) => v.isDefault === 1)
-      if (defaultVideo) {
-        selectedQuality.value = defaultVideo.quality
-        currentVideoUrl.value = defaultVideo.videoPath
-      } else {
-        // Try 1080p first
-        const video1080 = videoPathList.find((v) => v.quality === 1080)
-        if (video1080) {
-          selectedQuality.value = 1080
-          currentVideoUrl.value = video1080.videoPath
+      // Auto-select quality based on network speed
+      const recommendedQuality = getRecommendedQuality(availableQualities.value)
+
+      if (recommendedQuality) {
+        const recommendedVideo = videoPathList.find((v) => v.quality === recommendedQuality)
+        if (recommendedVideo) {
+          selectedQuality.value = recommendedQuality
+          currentVideoUrl.value = recommendedVideo.videoPath
         } else {
-          // Try 720p as fallback
-          const video720 = videoPathList.find((v) => v.quality === 720)
-          if (video720) {
-            selectedQuality.value = 720
-            currentVideoUrl.value = video720.videoPath
+          // Fallback to default or first available
+          const defaultVideo = videoPathList.find((v) => v.isDefault === 1)
+          if (defaultVideo) {
+            selectedQuality.value = defaultVideo.quality
+            currentVideoUrl.value = defaultVideo.videoPath
           } else {
-            // Use first available
             selectedQuality.value = videoPathList[0].quality
             currentVideoUrl.value = videoPathList[0].videoPath
           }
         }
+      } else {
+        // Fallback if no recommendation
+        const defaultVideo = videoPathList.find((v) => v.isDefault === 1)
+        if (defaultVideo) {
+          selectedQuality.value = defaultVideo.quality
+          currentVideoUrl.value = defaultVideo.videoPath
+        } else {
+          selectedQuality.value = videoPathList[0].quality
+          currentVideoUrl.value = videoPathList[0].videoPath
+        }
       }
     }
 
-    // Scroll to top of video player
-    window.scrollTo({ top: 0, behavior: "smooth" })
+    // Auto-play after selecting episode
+    nextTick(() => {
+      if (videoPlayer.value?.player) {
+        videoPlayer.value.player.ready(() => {
+          videoPlayer.value.player.play()
+        })
+      } else if (videoPlayer.value?.play) {
+        videoPlayer.value.play()
+      }
+    })
+  }
+
+  const handleEpisodeClick = (episode, index) => {
+    selectEpisode(episode, index)
   }
 
   const changeQuality = (quality) => {
     // Only allow quality change if VIP
-    if (!isVIP.value) {
+    if (!isVIPComputed.value) {
       showVIPModal.value = true
       return
     }
@@ -535,16 +413,21 @@
     if (cdnList.length > 0) {
       const videoPathList = cdnList[0].videoPathList || []
       const video = videoPathList.find((v) => v.quality === quality)
-      
+
       if (video) {
-        const currentTime = videoPlayer.value?.currentTime || 0
+        // Get current time from Video.js player or native video element
+        const currentTime = videoPlayer.value?.getCurrentTime?.() || videoPlayer.value?.currentTime || 0
         selectedQuality.value = quality
         currentVideoUrl.value = video.videoPath
-        
+
         // Resume from current time after quality change
         nextTick(() => {
-          if (videoPlayer.value) {
+          if (videoPlayer.value?.setCurrentTime) {
+            videoPlayer.value.setCurrentTime(currentTime)
+          } else if (videoPlayer.value?.currentTime !== undefined) {
             videoPlayer.value.currentTime = currentTime
+          }
+          if (videoPlayer.value?.play) {
             videoPlayer.value.play()
           }
         })
@@ -552,9 +435,103 @@
     }
   }
 
+  const saveCurrentProgress = () => {
+    if (currentEpisode.value && drama.value && videoPlayer.value) {
+      // Get current time from Video.js player or native video element
+      const currentTime = videoPlayer.value.getCurrentTime?.() || videoPlayer.value.currentTime || 0
+      // Ensure drama data includes total episodes from episodes array
+      const dramaDataWithEpisodes = {
+        ...drama.value,
+        totalChapterNum: episodes.value.length,
+      }
+
+      saveWatchProgress(dramaId.value, dramaDataWithEpisodes, currentEpisodeIndex.value, currentEpisode.value, currentTime)
+    }
+  }
+
   const playNextEpisode = () => {
     if (currentEpisodeIndex.value < episodes.value.length - 1) {
       selectEpisode(episodes.value[currentEpisodeIndex.value + 1], currentEpisodeIndex.value + 1)
+      // Auto-play next episode
+      nextTick(() => {
+        if (videoPlayer.value?.player) {
+          videoPlayer.value.player.ready(() => {
+            videoPlayer.value.player.play()
+          })
+        } else if (videoPlayer.value?.play) {
+          videoPlayer.value.play()
+        }
+      })
+    }
+  }
+
+  const playPreviousEpisode = () => {
+    if (currentEpisodeIndex.value > 0) {
+      selectEpisode(episodes.value[currentEpisodeIndex.value - 1], currentEpisodeIndex.value - 1)
+      // Auto-play previous episode
+      nextTick(() => {
+        if (videoPlayer.value?.player) {
+          videoPlayer.value.player.ready(() => {
+            videoPlayer.value.player.play()
+          })
+        } else if (videoPlayer.value?.play) {
+          videoPlayer.value.play()
+        }
+      })
+    }
+  }
+
+  const handleTimeUpdate = (currentTime) => {
+    // Update saved time for resume (only if > 5 seconds to avoid saving at start)
+    if (currentTime > 5) {
+      savedCurrentTime.value = currentTime
+    }
+    // Check if player is playing - use isPaused method from VideoPlayer
+    if (videoPlayer.value) {
+      const paused = videoPlayer.value.isPaused?.() ?? true
+      isPlayerPlaying.value = !paused
+    }
+  }
+
+  // Watch for play/pause events from player
+  watch(
+    () => videoPlayer.value?.isPaused?.(),
+    (paused) => {
+      if (paused !== undefined) {
+        isPlayerPlaying.value = !paused
+      }
+    },
+    { immediate: true }
+  )
+
+  // Handle VIP activated
+  const handleVIPActivated = async () => {
+    // Check VIP status multiple times to ensure it's updated
+    await checkVIPStatus()
+    await new Promise((resolve) => setTimeout(resolve, 100)) // Small delay
+    await checkVIPStatus()
+    console.log("VIP activated, isVIP:", isVIP.value)
+
+    // Force reactivity update - wait for multiple ticks to ensure all updates
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    // Force re-render EpisodeSelector by toggling showAllOverlays
+    const originalOverlays = showAllOverlays.value
+    showAllOverlays.value = false
+    await nextTick()
+    showAllOverlays.value = true
+    await nextTick()
+
+    if (isVIPComputed.value) {
+      // If there's already a selected episode, re-select it to enable video
+      if (currentEpisode.value) {
+        selectEpisode(currentEpisode.value, currentEpisodeIndex.value)
+      } else if (episodes.value.length > 0) {
+        // Auto-select first episode if no episode is selected yet
+        selectEpisode(episodes.value[0], 0)
+      }
     }
   }
 
@@ -565,7 +542,7 @@
     try {
       // Fetch drama details
       const dramaData = await fetchDramaDetails(dramaId.value)
-      
+
       if (!dramaData) {
         error.value = "Drama not found"
         loading.value = false
@@ -573,33 +550,51 @@
       }
 
       drama.value = dramaData
+      console.log("Drama loaded:", {
+        bookName: dramaData.bookName,
+        title: dramaData.title,
+        introduction: dramaData.introduction,
+        description: dramaData.description,
+        synopsis: dramaData.synopsis,
+        fullData: dramaData,
+      })
 
-      // Fetch episodes and recommendations in parallel
-      const [episodesData, recommendationsData] = await Promise.all([
-        fetchEpisodes(dramaData.bookId || dramaData.id),
-        fetchRecommendations(),
-      ])
+      // Get bookId from drama data - ensure it exists
+      const bookId = dramaData.bookId || dramaData.id
+      if (!bookId) {
+        console.error("No bookId found in drama data:", dramaData)
+        error.value = "Drama data incomplete - missing bookId"
+        loading.value = false
+        return
+      }
 
+      console.log("Fetching episodes for bookId:", bookId)
+      // Fetch episodes
+      const episodesData = await fetchEpisodes(bookId)
       episodes.value = episodesData
-      recommendations.value = recommendationsData.filter((r) => (r.bookId || r.id) != dramaId.value)
+
+      // Check VIP status
+      await checkVIPStatus()
 
       // Only auto-select episode if VIP
       if (isVIP.value && episodes.value.length > 0) {
-        const watchProgress = getWatchProgress(dramaId.value)
-        
-        if (watchProgress) {
-          // Resume from last watched episode
-          const episodeIndex = Math.min(watchProgress.episodeIndex, episodes.value.length - 1)
-          selectEpisode(episodes.value[episodeIndex], episodeIndex)
-          
-          // Resume from last position after video loads
-          nextTick(() => {
-            if (videoPlayer.value && watchProgress.currentTime) {
-              videoPlayer.value.currentTime = watchProgress.currentTime
-            }
-          })
+        // Check for saved progress
+        const savedProgress = getWatchProgress(dramaId.value)
+
+        if (savedProgress && savedProgress.episodeIndex !== undefined) {
+          const savedIndex = savedProgress.episodeIndex
+          if (savedIndex >= 0 && savedIndex < episodes.value.length) {
+            // Set saved time before selecting episode (only if > 5 seconds to avoid looping)
+            savedCurrentTime.value = savedProgress.currentTime && savedProgress.currentTime > 5 ? savedProgress.currentTime : 0
+            selectEpisode(episodes.value[savedIndex], savedIndex)
+          } else {
+            // Invalid index, select first episode
+            savedCurrentTime.value = 0
+            selectEpisode(episodes.value[0], 0)
+          }
         } else {
-          // Auto-select first episode
+          // No saved progress, select first episode
+          savedCurrentTime.value = 0
           selectEpisode(episodes.value[0], 0)
         }
       } else {
@@ -614,60 +609,57 @@
       if (progressSaveInterval) {
         clearInterval(progressSaveInterval)
       }
-      progressSaveInterval = setInterval(saveCurrentProgress, 5000)
-
-      console.log("Drama loaded:", drama.value?.bookName, "Episodes:", episodes.value.length)
+      progressSaveInterval = setInterval(() => {
+        saveCurrentProgress()
+      }, 5000)
     } catch (err) {
-      error.value = "Failed to load drama details."
       console.error("Error loading data:", err)
+      error.value = "Failed to load drama details"
     } finally {
       loading.value = false
     }
   }
 
   // Watch for route changes
-  watch(dramaId, (newId) => {
-    if (newId) {
-      loadData()
-    }
-  })
+  watch(
+    () => route.params.id,
+    (newId) => {
+      if (newId) {
+        loadData()
+      }
+    },
+    { immediate: false }
+  )
 
-  onMounted(async () => {
-    await checkVIP()
+  onMounted(() => {
     loadData()
   })
 
   onUnmounted(() => {
     // Save progress before leaving
     saveCurrentProgress()
-    
+
     // Clear interval
     if (progressSaveInterval) {
       clearInterval(progressSaveInterval)
     }
   })
-
-  definePageMeta({
-    layout: "default",
-  })
 </script>
 
 <style scoped>
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+  /* Prevent scrolling */
+  body {
+    overflow: hidden;
   }
 
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: #1f2937;
-    border-radius: 3px;
+  /* Fade transition */
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: opacity 0.3s ease;
   }
 
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #4b5563;
-    border-radius: 3px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
+  .fade-enter-from,
+  .fade-leave-to {
+    opacity: 0;
   }
 </style>

@@ -3,8 +3,9 @@
     <main class="flex-1">
       <slot />
     </main>
-    <!-- FAB Search Button -->
+    <!-- FAB Search Button (Hide on detail page) -->
     <button
+      v-if="!isDetailPage"
       @click="showSearch = true"
       class="fixed bottom-6 right-6 z-[100] bg-red-600 hover:bg-red-700 text-white rounded-full p-4 shadow-2xl transition-all hover:scale-110 flex items-center justify-center ring-2 ring-red-500/50 w-14 h-14"
     >
@@ -27,7 +28,16 @@
 </template>
 
 <script setup>
-  import { ref } from "vue"
+  import { ref, computed } from "vue"
 
+  const route = useRoute()
   const showSearch = ref(false)
+  
+  // Hide FAB on detail page
+  const isDetailPage = computed(() => {
+    if (process.client) {
+      return route.path.startsWith('/detail/')
+    }
+    return false
+  })
 </script>
