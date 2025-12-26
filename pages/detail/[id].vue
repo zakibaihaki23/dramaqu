@@ -1,36 +1,8 @@
 <template>
   <div
     class="bg-black text-white fixed inset-0 overflow-hidden"
-    style="height: 100vh; width: 100vw"
+    style="width: 100vw; height: 100dvh; height: 100vh"
   >
-    <!-- Back Button (Overlay) - Fade out when playing -->
-    <Transition name="fade">
-      <div
-        v-if="!isPlayerPlaying"
-        class="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/80 to-transparent px-4 py-3"
-      >
-        <button
-          @click="$router.back()"
-          class="flex items-center gap-2 text-white hover:text-gray-300 transition bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg"
-        >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            ></path>
-          </svg>
-          <span class="text-sm font-medium">Back</span>
-        </button>
-      </div>
-    </Transition>
-
     <!-- Loading -->
     <LoadingSpinner
       :show="loading"
@@ -65,13 +37,15 @@
         :available-qualities="availableQualities"
         :selected-quality="selectedQuality"
         :initial-time="savedCurrentTime"
+        :show-overlays="showAllOverlays"
         @next-episode="playNextEpisode"
         @previous-episode="playPreviousEpisode"
         @ended="playNextEpisode"
         @timeupdate="handleTimeUpdate"
         @quality-change="changeQuality"
-        @play="isPlayerPlaying = true"
-        @pause="isPlayerPlaying = false"
+        @play="handlePlayerPlay"
+        @pause="handlePlayerPause"
+        @toggle-overlays="showAllOverlays = !showAllOverlays"
       />
 
       <!-- VIP Restricted Placeholder - Overlay yang block screen -->
@@ -128,10 +102,10 @@
         </div>
       </div>
 
-      <!-- Episode Selector (Bottom Bar) - Show when paused -->
+      <!-- Episode Selector (Bottom Bar) - Show when paused or overlays visible -->
       <Transition name="fade">
         <EpisodeSelector
-          v-if="episodes.length > 0 && !isPlayerPlaying"
+          v-if="episodes.length > 0 && (!isPlayerPlaying || !showAllOverlays)"
           :episodes="episodes"
           :current-episode-index="currentEpisodeIndex"
           :total-episodes="episodes.length"
@@ -144,29 +118,6 @@
           @select-episode="handleEpisodeClick"
           @toggle-overlays="showAllOverlays = !showAllOverlays"
         />
-      </Transition>
-
-      <!-- Show Overlays Button (Bottom Right) - Show when overlays hidden -->
-      <Transition name="fade">
-        <button
-          v-if="!showAllOverlays"
-          @click="showAllOverlays = true"
-          class="absolute bottom-4 right-4 z-50 text-white hover:text-gray-300 transition bg-black/60 backdrop-blur-sm p-3 rounded-full"
-        >
-          <svg
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            ></path>
-          </svg>
-        </button>
       </Transition>
     </div>
 
@@ -203,7 +154,7 @@
   const videoPlayer = ref(null)
   const isPlayerPlaying = ref(false)
   const savedCurrentTime = ref(0)
-  const showAllOverlays = ref(true) // Control untuk show/hide semua overlay
+  const showAllOverlays = ref(false) // Control untuk show/hide semua overlay (false = visible, true = hidden)
 
   // VIP Management
   const { isVIP, checkVIPStatus } = useVIP()
@@ -333,7 +284,7 @@
     }
   }
 
-  const selectEpisode = (episode, index) => {
+  const selectEpisode = (episode, index, resetTime = false) => {
     // Only allow if VIP
     if (!isVIPComputed.value) {
       showVIPModal.value = true
@@ -342,6 +293,11 @@
 
     // Save progress before switching
     saveCurrentProgress()
+
+    // Reset saved time if this is auto-play next episode
+    if (resetTime) {
+      savedCurrentTime.value = 0
+    }
 
     currentEpisode.value = episode
     currentEpisodeIndex.value = index
@@ -386,12 +342,11 @@
 
     // Auto-play after selecting episode
     nextTick(() => {
-      if (videoPlayer.value?.player) {
-        videoPlayer.value.player.ready(() => {
-          videoPlayer.value.player.play()
+      if (videoPlayer.value?.play) {
+        // Use Plyr's play method directly
+        videoPlayer.value.play().catch((err) => {
+          console.log("Auto-play prevented:", err)
         })
-      } else if (videoPlayer.value?.play) {
-        videoPlayer.value.play()
       }
     })
   }
@@ -450,35 +405,61 @@
   }
 
   const playNextEpisode = () => {
-    if (currentEpisodeIndex.value < episodes.value.length - 1) {
-      selectEpisode(episodes.value[currentEpisodeIndex.value + 1], currentEpisodeIndex.value + 1)
-      // Auto-play next episode
+    // Prevent double call
+    if (currentEpisodeIndex.value >= episodes.value.length - 1) {
+      return
+    }
+
+    // Get next index before any state changes
+    const nextIndex = currentEpisodeIndex.value + 1
+
+    // Show overlays when switching to next episode
+    showAllOverlays.value = false
+
+    // Reset saved time when auto-playing next episode to avoid looping
+    selectEpisode(episodes.value[nextIndex], nextIndex, true)
+
+    // Auto-play next episode
+    nextTick(() => {
+      if (videoPlayer.value?.play) {
+        // Use Plyr's play method directly
+        videoPlayer.value.play().catch((err) => {
+          console.log("Auto-play prevented:", err)
+        })
+      }
+    })
+  }
+
+  const playPreviousEpisode = () => {
+    if (currentEpisodeIndex.value > 0) {
+      // Get previous index before any state changes
+      const prevIndex = currentEpisodeIndex.value - 1
+
+      selectEpisode(episodes.value[prevIndex], prevIndex)
+
+      // Auto-play previous episode
       nextTick(() => {
-        if (videoPlayer.value?.player) {
-          videoPlayer.value.player.ready(() => {
-            videoPlayer.value.player.play()
+        if (videoPlayer.value?.play) {
+          // Use Plyr's play method directly
+          videoPlayer.value.play().catch((err) => {
+            console.log("Auto-play prevented:", err)
           })
-        } else if (videoPlayer.value?.play) {
-          videoPlayer.value.play()
         }
       })
     }
   }
 
-  const playPreviousEpisode = () => {
-    if (currentEpisodeIndex.value > 0) {
-      selectEpisode(episodes.value[currentEpisodeIndex.value - 1], currentEpisodeIndex.value - 1)
-      // Auto-play previous episode
-      nextTick(() => {
-        if (videoPlayer.value?.player) {
-          videoPlayer.value.player.ready(() => {
-            videoPlayer.value.player.play()
-          })
-        } else if (videoPlayer.value?.play) {
-          videoPlayer.value.play()
-        }
-      })
-    }
+  const handlePlayerPlay = () => {
+    isPlayerPlaying.value = true
+    // Reset overlays to visible when video starts playing
+    // VideoPlayer will auto-hide after 10 seconds
+    showAllOverlays.value = false
+  }
+
+  const handlePlayerPause = () => {
+    isPlayerPlaying.value = false
+    // Show overlays when paused
+    showAllOverlays.value = false
   }
 
   const handleTimeUpdate = (currentTime) => {

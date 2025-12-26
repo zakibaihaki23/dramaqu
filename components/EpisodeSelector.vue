@@ -10,7 +10,7 @@
         <!-- Title -->
         <Transition name="fade">
           <h2
-            v-if="dramaTitle && dramaTitle.trim() && !isPlaying"
+            v-if="dramaTitle && dramaTitle.trim() && !showOverlays"
             class="text-white font-bold text-lg mb-2"
           >
             {{ dramaTitle }}
@@ -20,7 +20,7 @@
         <!-- Caption with Read More -->
         <Transition name="fade">
           <div
-            v-if="dramaCaption && dramaCaption.trim() && !isPlaying"
+            v-if="dramaCaption && dramaCaption.trim() && !showOverlays"
             class="text-gray-300 text-sm"
           >
             <p :class="showFullCaption ? '' : 'line-clamp-2'">{{ dramaCaption }}</p>
@@ -60,29 +60,9 @@
           </button>
         </div>
 
-        <!-- Total Episodes with Fullscreen Icon -->
+        <!-- Total Episodes -->
         <div class="flex items-center gap-3">
           <div class="text-white text-sm opacity-75">{{ totalEpisodes }} Episodes</div>
-          <!-- Fullscreen Toggle Button -->
-          <button
-            v-if="showOverlays"
-            @click="$emit('toggle-overlays')"
-            class="text-white hover:text-gray-300 transition bg-black/40 backdrop-blur-sm p-2 rounded-lg"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-              ></path>
-            </svg>
-          </button>
         </div>
       </div>
     </div>
