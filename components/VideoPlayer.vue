@@ -191,7 +191,7 @@
                 <Transition name="fade">
                   <div
                     v-if="showQualityMenu"
-                    class="absolute right-0 top-full mt-2 bg-black/90 backdrop-blur-sm rounded-lg p-2 min-w-[80px] z-[100]"
+                    class="absolute right-0 top-full mt-2 bg-black/90 backdrop-blur-sm rounded-lg p-2 min-w-[80px] z-[300]"
                     @click.stop
                   >
                     <button
@@ -221,7 +221,7 @@
                 <Transition name="fade">
                   <div
                     v-if="showSpeedMenu"
-                    class="absolute right-0 top-full mt-2 bg-black/90 backdrop-blur-sm rounded-lg p-2 min-w-[80px] z-[100]"
+                    class="absolute right-0 top-full mt-2 bg-black/90 backdrop-blur-sm rounded-lg p-2 min-w-[80px] z-[300]"
                     @click.stop
                   >
                     <button
@@ -261,7 +261,7 @@
                 <Transition name="fade">
                   <div
                     v-if="showVolumeSlider"
-                    class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-black/90 backdrop-blur-sm rounded-lg overflow-hidden py-4 px-2"
+                    class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-black/90 backdrop-blur-sm rounded-lg overflow-hidden py-4 px-2 z-[300]"
                     @click.stop
                     @touchstart.stop
                     @touchmove.stop
@@ -349,10 +349,10 @@
     <div
       class="absolute left-0 right-0"
       :style="{
-        top: '64px',
+        top: '80px',
         bottom: props.showOverlays ? '80px' : '0',
         zIndex: 100,
-        pointerEvents: 'auto',
+        pointerEvents: showQualityMenu || showSpeedMenu || showVolumeSlider ? 'none' : 'auto',
       }"
       @touchstart.capture="handleTouchStartWrapper"
       @touchmove.capture="handleTouchMove"
