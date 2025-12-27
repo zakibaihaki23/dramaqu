@@ -1,18 +1,58 @@
 // composables/useVIP.js
 import { ref } from "vue"
+import fs from "fs"
+import path from "path"
+
+// Path ke file JSON VIP codes (di folder server)
+const VIP_CODES_FILE = path.join(process.cwd(), "server", "vip-codes.json")
+
+// Load VIP codes dari file JSON (atau fallback ke hardcoded jika file belum ada)
+let VIP_CODES = []
+try {
+  const data = fs.readFileSync(VIP_CODES_FILE, "utf8")
+  VIP_CODES = JSON.parse(data)
+} catch (err) {
+  // Fallback ke hardcoded jika file belum ada
+  VIP_CODES = [
+    { code: "VIP123", duration: "7D", expiredAt: new Date("2025-12-31").toISOString() },
+    { code: "PREMIUM456", duration: "30D", expiredAt: new Date("2026-01-15").toISOString() },
+  ]
+  // Simpan fallback ke file
+  saveVipCodesToFile()
+}
+
+// Fungsi untuk simpan VIP codes ke file JSON
+function saveVipCodesToFile() {
+  try {
+    fs.writeFileSync(VIP_CODES_FILE, JSON.stringify(VIP_CODES, null, 2))
+  } catch (err) {
+    console.error("Error saving VIP codes to file:", err)
+  }
+}
+
+// Fungsi untuk validasi kode VIP
+export function validateVipCode(inputCode) {
+  const code = VIP_CODES.find((c) => c.code === inputCode.toUpperCase())
+  if (!code) return null
+  if (new Date() > new Date(code.expiredAt)) return null // Expired
+  return code
+}
+
+// Fungsi untuk menambah kode VIP baru (dipanggil dari bot)
+export function addVipCode(code, duration, expiredAt) {
+  const newCode = {
+    code: code.toUpperCase(),
+    duration: `${duration}D`,
+    expiredAt: expiredAt.toISOString(),
+  }
+  VIP_CODES.push(newCode)
+  saveVipCodesToFile() // Persist ke file
+  console.log(`VIP code added and saved: ${code} (${duration}D)`)
+  return newCode
+}
 
 export const useVIP = () => {
   const isVIP = ref(false)
-
-  // VIP Codes with duration (in days)
-  const VIP_CODES = {
-    // Admin code (unlimited use, duration tidak berpengaruh)
-    ADMIN2025: { type: "admin", unlimited: true, duration: 0 }, // 0 = unlimited
-
-    // Normal codes (one-time use with duration in days)
-    TRIAL20251DAY: { type: "normal", unlimited: false, duration: 1 }, // 1 day
-    TRIAL20251DAY_001: { type: "normal", unlimited: false, duration: 1 }, // 2 days
-  }
 
   // Secret salt for checksum (change this for production)
   const SECRET_SALT = "dramaqu_vip_2024_secret_salt_change_me"
@@ -30,10 +70,8 @@ export const useVIP = () => {
 
   // Generate checksum for data integrity
   const generateChecksum = (data) => {
-    // Create a copy without checksum field to avoid circular dependency
     const dataCopy = { ...data }
     delete dataCopy.checksum
-    // Create a string from data + secret salt
     const dataStr = JSON.stringify(dataCopy) + SECRET_SALT
     return hashCode(dataStr)
   }
@@ -44,7 +82,7 @@ export const useVIP = () => {
     return expectedChecksum === checksum
   }
 
-  // Open IndexedDB
+  // Open IndexedDB (untuk client-side storage user VIP status)
   const openDB = () => {
     return new Promise((resolve, reject) => {
       if (typeof window === "undefined" || !("indexedDB" in window)) {
@@ -102,7 +140,6 @@ export const useVIP = () => {
           }
 
           // Validate checksum - if tampered, clear data
-          // Skip validation if data doesn't have checksum (new/empty data)
           if (data.checksum) {
             const isValid = validateChecksum(data, data.checksum)
             if (!isValid) {
@@ -122,16 +159,13 @@ export const useVIP = () => {
             const now = Date.now()
             let hasValidCode = false
 
-            // Check each code for expiry
             for (const codeEntry of data.usedCodes) {
-              // If unlimited (admin), always valid - check explicitly for true
               if (codeEntry.unlimited === true) {
                 console.log("VIP Status: Found unlimited code:", codeEntry)
                 hasValidCode = true
                 break
               }
 
-              // Check expiry for normal codes
               if (codeEntry.expiry && codeEntry.expiry > now) {
                 console.log("VIP Status: Found valid code with expiry:", codeEntry)
                 hasValidCode = true
@@ -141,9 +175,7 @@ export const useVIP = () => {
 
             console.log("VIP Status check result:", { hasValidCode, usedCodes: data.usedCodes, checksum: data.checksum })
 
-            // Clean expired codes
             if (!hasValidCode) {
-              // All codes expired, clear data
               console.log("VIP Status: No valid codes found, clearing data")
               clearVIPData()
               isVIP.value = false
@@ -157,11 +189,9 @@ export const useVIP = () => {
               return codeEntry.expiry && codeEntry.expiry > now
             })
 
-            // Update if codes were removed
             if (validCodes.length !== data.usedCodes.length) {
               data.usedCodes = validCodes
               data.checksum = generateChecksum(data)
-              // Save updated data (async, don't wait)
               const db = openDB().then((db) => {
                 const transaction = db.transaction(["vip"], "readwrite")
                 const store = transaction.objectStore("vip")
@@ -188,7 +218,7 @@ export const useVIP = () => {
     }
   }
 
-  // Validate VIP code
+  // Validate VIP code (cek dari JSON file)
   const validateCode = async (code) => {
     try {
       if (typeof window === "undefined" || !("indexedDB" in window)) {
@@ -197,127 +227,43 @@ export const useVIP = () => {
 
       const upperCode = code.toUpperCase().trim()
 
-      // Check if code exists
-      if (!VIP_CODES[upperCode]) {
+      // Cek dari JSON file (server-side codes)
+      const vipCode = validateVipCode(upperCode)
+      if (!vipCode) {
         return { valid: false, message: "Invalid code" }
       }
 
-      const codeInfo = VIP_CODES[upperCode]
-      const codeHash = hashCode(upperCode)
-
-      // Open database
+      // Jika valid, simpan ke IndexedDB untuk tracking user
       const db = await openDB()
       const transaction = db.transaction(["vip"], "readwrite")
       const store = transaction.objectStore("vip")
 
-      // Get current data
       const getRequest = store.get("status")
 
       return new Promise((resolve) => {
         getRequest.onsuccess = () => {
           let currentData = getRequest.result || { id: "status", usedCodes: [], timestamp: Date.now() }
-          let needsMigration = false
 
-          // Ensure usedCodes is array
           if (!Array.isArray(currentData.usedCodes)) {
             currentData.usedCodes = []
-            needsMigration = true
           }
 
-          // Check if migration needed (old format: array of strings)
-          if (currentData.usedCodes.length > 0 && typeof currentData.usedCodes[0] === "string") {
-            needsMigration = true
-          }
-
-          // Validate checksum only if data doesn't need migration
-          if (!needsMigration && currentData.checksum && !validateChecksum(currentData, currentData.checksum)) {
-            // Data tampered, reset
-            currentData = { id: "status", usedCodes: [], timestamp: Date.now() }
-            needsMigration = false
-          }
-
-          // Migrate old format (array of strings) to new format (array of objects)
-          if (needsMigration || currentData.usedCodes.some((code) => typeof code === "string" || !code.hash)) {
-            currentData.usedCodes = currentData.usedCodes
-              .map((code) => {
-                if (typeof code === "string") {
-                  // Old format - check if it's admin code by checking all admin codes
-                  let isAdmin = false
-                  for (const [codeKey, codeInfo] of Object.entries(VIP_CODES)) {
-                    if (codeInfo.unlimited && code === hashCode(codeKey)) {
-                      isAdmin = true
-                      break
-                    }
-                  }
-                  return {
-                    hash: code,
-                    unlimited: isAdmin,
-                    expiry: isAdmin ? null : Date.now() + 86400000, // Default 1 day for old codes
-                  }
-                }
-                // Already in new format, ensure it has all required fields
-                if (!code.hash) {
-                  // Invalid format, skip
-                  return null
-                }
-                return {
-                  hash: code.hash,
-                  unlimited: code.unlimited || false,
-                  expiry: code.unlimited ? null : code.expiry || Date.now() + 86400000,
-                }
-              })
-              .filter((code) => code !== null) // Remove invalid entries
-          }
-
-          // Admin code - always valid (unlimited, no expiry)
-          if (codeInfo.type === "admin" && codeInfo.unlimited) {
-            // Check if admin code already exists
-            const existingAdmin = currentData.usedCodes.find((code) => code.hash === codeHash && code.unlimited === true)
-
-            if (!existingAdmin) {
-              // Add admin code (unlimited, no expiry)
-              currentData.usedCodes.push({
-                hash: codeHash,
-                unlimited: true,
-                expiry: null, // No expiry for unlimited
-              })
-            }
-            currentData.timestamp = Date.now()
-
-            // Generate new checksum (before saving)
-            const dataToSave = { ...currentData }
-            dataToSave.checksum = generateChecksum(dataToSave)
-
-            // Save to IndexedDB
-            const putRequest = store.put(dataToSave)
-            putRequest.onsuccess = () => {
-              isVIP.value = true
-              resolve({ valid: true, isAdmin: true, message: "VIP access activated!" })
-            }
-            putRequest.onerror = (error) => {
-              console.error("Error saving admin code:", error)
-              resolve({ valid: false, message: "Error saving code" })
-            }
-            return
-          }
-
-          // Normal code - check if already used
+          // Cek jika kode sudah digunakan
+          const codeHash = hashCode(upperCode)
           const existingCode = currentData.usedCodes.find((code) => code.hash === codeHash)
           if (existingCode) {
-            // Check if code is still valid (not expired)
             if (existingCode.expiry && existingCode.expiry > Date.now()) {
               resolve({ valid: false, message: "Code already used" })
               return
             }
-            // Code expired, remove it and allow reuse
+            // Kode expired, hapus dan allow reuse
             currentData.usedCodes = currentData.usedCodes.filter((code) => code.hash !== codeHash)
           }
 
-          // Calculate expiry based on duration (in milliseconds)
-          const durationMs = codeInfo.duration * 24 * 60 * 60 * 1000 // Convert days to milliseconds
-          const expiry = Date.now() + durationMs
+          // Hitung expiry dari JSON
+          const expiry = new Date(vipCode.expiredAt).getTime()
 
-          // Valid and not used (or expired) - add to used codes with expiry
+          // Tambah ke used codes
           currentData.usedCodes.push({
             hash: codeHash,
             unlimited: false,
@@ -325,18 +271,16 @@ export const useVIP = () => {
           })
           currentData.timestamp = Date.now()
 
-          // Generate new checksum (before saving)
           const dataToSave = { ...currentData }
           dataToSave.checksum = generateChecksum(dataToSave)
 
-          // Save to IndexedDB
           const putRequest = store.put(dataToSave)
           putRequest.onsuccess = () => {
             isVIP.value = true
             resolve({ valid: true, isAdmin: false, message: "VIP access activated!" })
           }
           putRequest.onerror = (error) => {
-            console.error("Error saving normal code:", error)
+            console.error("Error saving code:", error)
             resolve({ valid: false, message: "Error saving code" })
           }
         }
@@ -368,13 +312,11 @@ export const useVIP = () => {
             return
           }
 
-          // Validate checksum
           if (!validateChecksum(data, data.checksum)) {
             resolve({ isVIP: false, usedCount: 0 })
             return
           }
 
-          // Count valid codes (not expired)
           const now = Date.now()
           const validCodes = (data.usedCodes || []).filter((codeEntry) => {
             if (codeEntry.unlimited) return true
@@ -400,3 +342,4 @@ export const useVIP = () => {
     getVIPStatus,
   }
 }
+
