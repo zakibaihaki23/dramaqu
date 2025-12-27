@@ -1,6 +1,8 @@
+import { defineNuxtPlugin } from "#app"
+
 export default defineNuxtPlugin((nuxtApp) => {
   // Handle pull-to-refresh prevention for mobile PWA
-  if (process.client) {
+  if (import.meta.client) {
     let startY = 0
     let isAtTop = false
 

@@ -113,26 +113,24 @@
 
       // Load watch history and enrich with total episodes
       const history = getWatchHistory().slice(0, 8)
-      
+
       // Enrich history with total episodes and cover from drama data
       for (const item of history) {
         // Try to find drama in fetched data to get total episodes and cover
-        const dramaData = [...forYou.value, ...latest.value, ...trending.value, ...random.value].find(
-          (d) => (d.bookId || d.id) == item.dramaId
-        )
-        
+        const dramaData = [...forYou.value, ...latest.value, ...trending.value, ...random.value].find((d) => (d.bookId || d.id) == item.dramaId)
+
         if (dramaData) {
           // Update total episodes
           if (dramaData.totalChapterNum) {
             item.totalEpisodes = dramaData.totalChapterNum
           }
           // Update cover if missing
-          if (!item.dramaCover || item.dramaCover === '') {
-            item.dramaCover = dramaData.bookCover || dramaData.coverWap || dramaData.image || dramaData.poster || ''
+          if (!item.dramaCover || item.dramaCover === "") {
+            item.dramaCover = dramaData.bookCover || dramaData.coverWap || dramaData.image || dramaData.poster || ""
           }
           // Update name if missing
-          if (!item.dramaName || item.dramaName === '') {
-            item.dramaName = dramaData.bookName || dramaData.title || ''
+          if (!item.dramaName || item.dramaName === "") {
+            item.dramaName = dramaData.bookName || dramaData.title || ""
           }
         } else if (!item.totalEpisodes || item.totalEpisodes === 0) {
           // If still no total episodes, try to fetch from API
@@ -142,13 +140,13 @@
             })
             const episodesData = episodeRes.data?.data || episodeRes.data || []
             item.totalEpisodes = Array.isArray(episodesData) ? episodesData.length : 1
-          } catch (err) {
+          } catch {
             // If fetch fails, use episodes.length from history or default to 1
             item.totalEpisodes = item.totalEpisodes || 1
           }
         }
       }
-      
+
       continueWatching.value = history
 
       console.log("Data loaded:", { forYou: forYou.value.length, latest: latest.value.length, trending: trending.value.length, random: random.value.length, continueWatching: continueWatching.value.length })

@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "code": "QSGR8K",
+    "duration": "1D",
+    "expiredAt": "2025-12-28T12:33:30.119Z",
+    "admin": false,
+    "unlimited": false
+  },
+  {
+    "code": "TEST123",
+    "duration": "7D",
+    "expiredAt": "2026-01-03T05:35:28.569Z",
+    "admin": false,
+    "unlimited": false
+  },
+  {
+    "code": "ADMIN456",
+    "duration": "ADMIN",
+    "expiredAt": null,
+    "admin": true,
+    "unlimited": true
+  }
+]

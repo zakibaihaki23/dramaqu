@@ -1,4 +1,5 @@
 import axios from "axios"
+import { defineNuxtPlugin } from "#app"
 
 const BASE_URL = "https://dramabox.sansekai.my.id/api"
 

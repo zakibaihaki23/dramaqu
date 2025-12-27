@@ -57,8 +57,8 @@
       >
         <!-- Back Button (Only visible in overlay) -->
         <button
-          @click="$router.back()"
           class="absolute top-4 left-4 flex items-center gap-2 text-white hover:text-gray-300 transition bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg z-[201]"
+          @click="$router.back()"
         >
           <svg
             class="w-5 h-5"
@@ -71,7 +71,7 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M15 19l-7-7 7-7"
-            ></path>
+            />
           </svg>
           <span class="text-sm font-medium">Back</span>
         </button>
@@ -89,15 +89,15 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-            ></path>
+            />
           </svg>
           <div class="text-center">
             <p class="text-white text-xl font-bold mb-2">VIP Access Required</p>
             <p class="text-gray-400 text-sm mb-6 max-w-md">Unlock full access to watch all episodes in HD quality. Enter your VIP code to continue.</p>
           </div>
           <button
-            @click="showVIPModal = true"
             class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition transform hover:scale-105 shadow-lg relative z-[202]"
+            @click="showVIPModal = true"
           >
             Join VIP
           </button>
@@ -108,6 +108,7 @@
       <Transition name="fade">
         <EpisodeSelector
           v-if="episodes.length > 0 && (!isPlayerPlaying || !showAllOverlays)"
+          :key="`episode-selector-${isVIP}-${episodes.length}-${showAllOverlays}`"
           :episodes="episodes"
           :current-episode-index="currentEpisodeIndex"
           :total-episodes="episodes.length"
@@ -117,7 +118,6 @@
           :is-playing="isPlayerPlaying"
           :show-overlays="showAllOverlays"
           :progress-data="progressData"
-          :key="`episode-selector-${isVIP}-${episodes.length}-${showAllOverlays}`"
           @select-episode="handleEpisodeClick"
           @toggle-overlays="showAllOverlays = !showAllOverlays"
           @seek-video="handleSeekVideo"
@@ -269,7 +269,7 @@
       const allDramas = response.data?.data || response.data || []
 
       // Find drama by ID - try multiple ID fields
-      let foundDrama = allDramas.find((d) => {
+      const foundDrama = allDramas.find((d) => {
         const bookId = String(d.bookId || "")
         const idField = String(d.id || "")
         return bookId === searchId || idField === searchId
@@ -543,7 +543,6 @@
     await nextTick()
 
     // Force re-render EpisodeSelector by toggling showAllOverlays
-    const originalOverlays = showAllOverlays.value
     showAllOverlays.value = false
     await nextTick()
     showAllOverlays.value = true

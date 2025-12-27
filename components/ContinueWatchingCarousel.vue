@@ -15,7 +15,7 @@
             :alt="item.dramaName"
             class="w-full h-full object-cover"
             loading="lazy"
-          />
+          >
           <div
             v-else
             class="w-full h-full bg-gray-800 flex items-center justify-center"
@@ -29,7 +29,7 @@
             <div
               class="h-full bg-red-600"
               :style="{ width: `${((item.episodeIndex + 1) / item.totalEpisodes) * 100}%` }"
-            ></div>
+            />
           </div>
           <!-- Episode Info Overlay -->
           <div class="absolute top-2 right-2 bg-black/80 backdrop-blur-sm px-2 py-1 rounded text-xs">

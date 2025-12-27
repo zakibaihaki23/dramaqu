@@ -4,12 +4,12 @@
     <div class="sticky top-16 z-40 bg-black border-b border-gray-800 px-4 py-4">
       <input
         v-model="searchQuery"
-        @keyup.enter="handleSearch"
         type="text"
         placeholder="Search drama..."
         class="w-full bg-gray-800 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
         autofocus
-      />
+        @keyup.enter="handleSearch"
+      >
     </div>
 
     <!-- Loading State -->
@@ -43,7 +43,7 @@
             :src="drama?.bookCover || drama?.coverWap || drama?.image || drama?.poster"
             :alt="drama?.bookName || drama?.title"
             class="w-full h-64 object-cover group-hover:scale-110 transition-transform"
-          />
+          >
           <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex flex-col justify-end p-3 group-hover:opacity-100">
             <p class="text-white text-sm font-semibold line-clamp-2">{{ drama?.bookName || drama?.title }}</p>
             <p

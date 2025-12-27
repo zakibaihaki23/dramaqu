@@ -13,7 +13,7 @@ export default defineNuxtConfig({
 
   // Dev server configuration untuk akses dari perangkat lain
   devServer: {
-    host: "0.0.0.0", // Allows access from other devices on the network
+    host: "localhost", // Changed to localhost for Windows compatibility
     port: 3000,
   },
 
@@ -21,14 +21,14 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: false,
     },
-    // Proxy untuk mengatasi CORS (dev & production)
-    devProxy: {
-      "/api": {
-        target: "https://dramabox.sansekai.my.id/api",
-        changeOrigin: true,
-        prependPath: true,
-      },
-    },
+    // Proxy untuk mengatasi CORS (dev & production) - DISABLED for local API development
+    // devProxy: {
+    //   "/api": {
+    //     target: "https://dramabox.sansekai.my.id/api",
+    //     changeOrigin: true,
+    //     prependPath: true,
+    //   },
+    // },
     // Ensure public assets are copied to output
     publicAssets: [
       {

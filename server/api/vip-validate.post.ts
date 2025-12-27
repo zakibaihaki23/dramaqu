@@ -33,22 +33,31 @@ export default defineEventHandler(async (event) => {
 
     const vipCode = codes[codeIndex]
 
-    // Check if expired
-    if (new Date() > new Date(vipCode.expiredAt)) {
+    // Check if this is an admin code (unlimited)
+    const isAdminCode = vipCode.admin === true || vipCode.unlimited === true
+
+    // Check if expired (skip for admin codes)
+    if (!isAdminCode && new Date() > new Date(vipCode.expiredAt)) {
       // Remove expired code
       codes.splice(codeIndex, 1)
       writeFileSync(filePath, JSON.stringify(codes, null, 2))
       return { valid: false, message: "Code expired" }
     }
 
-    // Code is valid - remove it (one-time use)
-    codes.splice(codeIndex, 1)
-    writeFileSync(filePath, JSON.stringify(codes, null, 2))
+    // For regular codes: remove after use (one-time use)
+    // For admin codes: keep them (unlimited use)
+    if (!isAdminCode) {
+      codes.splice(codeIndex, 1)
+      writeFileSync(filePath, JSON.stringify(codes, null, 2))
+    }
 
     return {
       valid: true,
-      message: "VIP access activated!",
-      code: vipCode,
+      message: isAdminCode ? "Admin access activated!" : "VIP access activated!",
+      code: {
+        ...vipCode,
+        unlimited: isAdminCode,
+      },
     }
   } catch (err) {
     console.error("VIP validation error:", err)

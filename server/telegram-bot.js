@@ -17,7 +17,7 @@ function loadVipCodes() {
   try {
     const data = fs.readFileSync(VIP_CODES_FILE, "utf8")
     return JSON.parse(data)
-  } catch (err) {
+  } catch {
     return [] // Fallback kosong
   }
 }
@@ -32,16 +32,18 @@ function saveVipCodes(codes) {
 }
 
 // Fungsi add VIP code
-function addVipCode(code, duration, expiredAt) {
+function addVipCode(code, duration, expiredAt, isAdmin = false) {
   const codes = loadVipCodes()
   const newCode = {
     code: code.toUpperCase(),
-    duration: `${duration}D`,
-    expiredAt: expiredAt.toISOString(),
+    duration: isAdmin ? "ADMIN" : `${duration}D`,
+    expiredAt: isAdmin ? null : expiredAt.toISOString(),
+    admin: isAdmin,
+    unlimited: isAdmin,
   }
   codes.push(newCode)
   saveVipCodes(codes)
-  console.log(`VIP code added: ${code} (${duration}D)`)
+  console.log(`${isAdmin ? "Admin" : "VIP"} code added: ${code} (${isAdmin ? "unlimited" : duration + "D"})`)
   return newCode
 }
 
@@ -68,6 +70,14 @@ async function generateVipCode(ctx, days) {
   const expDate = expiredAt.toISOString().slice(0, 19).replace("T", " ")
 
   await ctx.replyWithMarkdown(`🎉 Kode VIP ${days} Hari:\n\n📝 Kode: \`${newVip.code}\`\n⏰ Durasi: ${days} hari\n📅 Expired: ${expDate}\n\nGunakan di app DramaQu!`)
+}
+
+// Helper function untuk generate Admin code
+async function generateAdminCode(ctx) {
+  const code = generateCode()
+  const newAdmin = addVipCode(code, 0, null, true)
+
+  await ctx.replyWithMarkdown(`🔧 Kode Admin Unlimited:\n\n📝 Kode: \`${newAdmin.code}\`\n⏰ Durasi: Unlimited\n🔑 Type: Admin\n\nGunakan di app DramaQu untuk akses admin!`)
 }
 
 bot.start(async (ctx) => {
@@ -138,13 +148,17 @@ bot.command("gen", async (ctx) => {
   await ctx.replyWithMarkdown(`Kode VIP: \`${newVip.code}\`\nDurasi: ${days} hari\nExpired: ${expDate}`)
 })
 
+bot.command("admin", async (ctx) => {
+  await generateAdminCode(ctx)
+})
+
 // Jalankan bot
 console.log("Starting Telegram bot...")
 bot
   .launch()
   .then(() => {
     console.log("✅ Telegram bot started successfully!")
-    console.log("Bot is now listening for commands: /1d, /3d, /7d, /14d, /30d")
+    console.log("Bot is now listening for commands: /1d, /3d, /7d, /14d, /30d, /gen, /admin")
   })
   .catch((error) => {
     console.error("❌ Failed to start bot:", error.message)

@@ -26,8 +26,8 @@
             <p :class="showFullCaption ? '' : 'line-clamp-2'">{{ dramaCaption }}</p>
             <button
               v-if="dramaCaption && dramaCaption.length > 100"
-              @click="showFullCaption = !showFullCaption"
               class="text-red-500 hover:text-red-400 mt-1 text-xs font-medium transition"
+              @click="showFullCaption = !showFullCaption"
             >
               {{ showFullCaption ? "Read less" : "Read more" }}
             </button>
@@ -50,14 +50,14 @@
             class="absolute left-0 top-0 h-full bg-white"
             :class="isDraggingProgress ? '' : 'transition-all duration-100'"
             :style="{ width: `${localPercentage}%` }"
-          ></div>
+          />
 
           <!-- Draggable thumb (visible when dragging) -->
           <div
             v-if="isDraggingProgress"
             class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
             :style="{ left: `${localPercentage}%`, transform: 'translate(-50%, -50%)' }"
-          ></div>
+          />
         </div>
       </div>
 
@@ -65,8 +65,8 @@
         <!-- Current Episode Info -->
         <div class="flex items-center gap-3">
           <button
-            @click="showPopup = !showPopup"
             class="flex items-center gap-2 bg-black/60 hover:bg-black/80 text-white px-4 py-2 rounded-lg transition"
+            @click="showPopup = !showPopup"
           >
             <span class="text-sm font-medium">Episode {{ currentEpisodeIndex + 1 }}</span>
             <svg
@@ -104,8 +104,8 @@
         <div class="flex items-center justify-between p-4 border-b border-gray-800">
           <h3 class="text-white text-lg font-semibold">Select Episode</h3>
           <button
-            @click="showPopup = false"
             class="text-white hover:text-gray-300 transition"
+            @click="showPopup = false"
           >
             <svg
               class="w-6 h-6"
@@ -129,9 +129,9 @@
             <button
               v-for="(episode, index) in episodes"
               :key="episode.chapterId || index"
-              @click="selectEpisode(episode, index)"
               class="relative aspect-square bg-gray-800 rounded-lg transition-all hover:scale-105 flex items-center justify-center cursor-pointer"
               :class="currentEpisodeIndex === index ? 'ring-2 ring-red-600 bg-red-600 scale-105' : 'hover:ring-2 hover:ring-white/50 bg-gray-800'"
+              @click="selectEpisode(episode, index)"
             >
               <!-- Episode Number Only -->
               <p class="text-white font-bold text-sm">{{ index + 1 }}</p>
@@ -162,7 +162,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, watch } from "vue"
+  import { ref, watch } from "vue"
 
   const props = defineProps({
     episodes: {

@@ -9,7 +9,7 @@
         :src="drama?.bookCover || drama?.coverWap || drama?.image || drama?.poster"
         :alt="drama?.bookName || drama?.title"
         class="w-full h-full object-cover blur-xl scale-110 opacity-40"
-      />
+      >
     </div>
 
     <!-- Main Image (Portrait - Centered and Contained) -->
@@ -19,7 +19,7 @@
         :src="drama?.bookCover || drama?.coverWap || drama?.image || drama?.poster"
         :alt="drama?.bookName || drama?.title"
         class="h-full object-contain"
-      />
+      >
       <div
         v-else
         class="w-full h-full bg-gray-700 flex items-center justify-center"

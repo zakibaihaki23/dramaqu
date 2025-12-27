@@ -14,8 +14,8 @@
           <h2 class="text-xl font-bold text-white">VIP Access Required</h2>
           <button
             v-if="!forceInput"
-            @click="handleClose"
             class="text-gray-400 hover:text-white transition"
+            @click="handleClose"
           >
             <svg
               class="w-6 h-6"
@@ -28,7 +28,7 @@
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M6 18L18 6M6 6l12 12"
-              ></path>
+              />
             </svg>
           </button>
         </div>
@@ -47,9 +47,9 @@
               type="text"
               placeholder="Enter VIP code"
               class="w-full bg-gray-800 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-              @keyup.enter="handleSubmit"
               :disabled="validating"
-            />
+              @keyup.enter="handleSubmit"
+            >
           </div>
 
           <!-- Error Message -->
@@ -70,9 +70,9 @@
 
           <!-- Submit Button -->
           <button
-            @click="handleSubmit"
             :disabled="validating || !code.trim()"
             class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="handleSubmit"
           >
             <span v-if="validating">Validating...</span>
             <span v-else>Activate VIP</span>

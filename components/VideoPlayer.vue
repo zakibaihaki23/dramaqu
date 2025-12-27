@@ -28,7 +28,7 @@
         :style="{
           opacity: Math.min(1, Math.abs(dragOffset) / 200),
         }"
-      ></div>
+      />
       <div
         class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center"
         :style="{
@@ -63,7 +63,7 @@
         :style="{
           opacity: Math.min(1, Math.abs(dragOffset) / 200),
         }"
-      ></div>
+      />
       <div
         class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center"
         :style="{
@@ -94,7 +94,7 @@
           class="plyr-video w-full h-full"
           playsinline
           webkit-playsinline
-        ></video>
+        />
       </div>
 
       <!-- OVERLAY - IKUT SWIPE -->
@@ -148,8 +148,8 @@
           <div class="flex items-center justify-between">
             <!-- Back Button (Left) -->
             <button
-              @click.stop="router.back()"
               class="flex items-center gap-2 text-white hover:text-gray-300 transition px-2 py-1"
+              @click.stop="router.back()"
             >
               <svg
                 class="w-5 h-5"
@@ -180,9 +180,9 @@
                 class="relative quality-menu-container"
               >
                 <button
-                  @click.stop="toggleQualityMenu"
                   class="p-2 text-white hover:text-gray-300 transition"
                   :title="`${props.selectedQuality}p`"
+                  @click.stop="toggleQualityMenu"
                 >
                   <Hd class="w-5 h-5" />
                 </button>
@@ -197,9 +197,9 @@
                     <button
                       v-for="quality in props.availableQualities"
                       :key="quality"
-                      @click="selectQuality(quality)"
                       class="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded transition"
                       :class="props.selectedQuality === quality ? 'bg-red-600/50' : ''"
+                      @click="selectQuality(quality)"
                     >
                       {{ quality }}p
                     </button>
@@ -210,9 +210,9 @@
               <!-- Speed Button (Next to Quality) -->
               <div class="relative speed-menu-container">
                 <button
-                  @click.stop="toggleSpeedMenu"
                   class="p-2 text-white hover:text-gray-300 transition"
                   :title="`${playbackSpeed}x`"
+                  @click.stop="toggleSpeedMenu"
                 >
                   <FastForward class="w-5 h-5" />
                 </button>
@@ -227,9 +227,9 @@
                     <button
                       v-for="speed in [0.5, 0.75, 1, 1.25, 1.5, 2]"
                       :key="speed"
-                      @click="selectSpeed(speed)"
                       class="w-full text-left px-3 py-2 text-sm text-white hover:bg-white/10 rounded transition"
                       :class="playbackSpeed === speed ? 'bg-red-600/50' : ''"
+                      @click="selectSpeed(speed)"
                     >
                       {{ speed }}x
                     </button>
@@ -240,8 +240,8 @@
               <!-- Volume Icon Button -->
               <div class="relative volume-slider-container">
                 <button
-                  @click.stop="toggleVolumeSlider"
                   class="p-2 text-white hover:text-gray-300 transition"
+                  @click.stop="toggleVolumeSlider"
                 >
                   <VolumeOff
                     v-if="volume === 0"
@@ -275,19 +275,19 @@
                       @touchmove="handleVolumeBarTouch"
                     >
                       <!-- Background track -->
-                      <div class="absolute w-1 h-full bg-gray-700 rounded-full"></div>
+                      <div class="absolute w-1 h-full bg-gray-700 rounded-full" />
 
                       <!-- Filled track -->
                       <div
                         class="absolute w-1 bg-red-600 rounded-full bottom-0"
                         :style="{ height: `${volume * 100}%` }"
-                      ></div>
+                      />
 
                       <!-- Thumb -->
                       <div
                         class="absolute w-3 h-3 bg-white rounded-full shadow-lg"
                         :style="{ bottom: `${volume * 100}%`, transform: 'translateY(50%)' }"
-                      ></div>
+                      />
                     </div>
                   </div>
                 </Transition>
@@ -304,8 +304,8 @@
           class="absolute inset-0 z-[10] flex items-center justify-center pointer-events-none"
         >
           <button
-            @click.stop="togglePlayPause"
             class="pointer-events-auto bg-black/60 hover:bg-black/80 rounded-full p-6 transition-all transform hover:scale-110"
+            @click.stop="togglePlayPause"
           >
             <svg
               class="w-16 h-16 text-white"
@@ -359,7 +359,7 @@
       @touchend.capture="handleTouchEndWrapper"
       @touchcancel.capture="handleTouchEndWrapper"
       @click="handleScreenClick"
-    ></div>
+    />
 
     <!-- Progress Bar (Bottom) - Show when overlay hidden (video playing) -->
     <!-- Safe area: 80px height untuk easy tap dan avoid conflict -->
@@ -382,14 +382,14 @@
             class="absolute left-0 top-0 h-full bg-white"
             :class="isDragging ? '' : 'transition-all duration-100'"
             :style="{ width: `${localProgressPercentage}%` }"
-          ></div>
+          />
 
           <!-- Draggable thumb (visible when dragging) -->
           <div
             v-if="isDragging"
             class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
             :style="{ left: `${localProgressPercentage}%`, transform: 'translate(-50%, -50%)' }"
-          ></div>
+          />
         </div>
       </div>
 
@@ -469,7 +469,7 @@
   const swipeDirection = ref("up")
   // Load volume from localStorage
   const getStoredVolume = () => {
-    if (process.client) {
+    if (import.meta.client) {
       const stored = localStorage.getItem("dramaqu_volume")
       if (stored !== null) {
         return parseFloat(stored)
@@ -479,7 +479,7 @@
   }
 
   const getStoredMuted = () => {
-    if (process.client) {
+    if (import.meta.client) {
       const stored = localStorage.getItem("dramaqu_muted")
       return stored === "true"
     }
@@ -494,7 +494,7 @@
   const showSpeedMenu = ref(false)
   // Load speed from localStorage
   const getStoredSpeed = () => {
-    if (process.client) {
+    if (import.meta.client) {
       const stored = localStorage.getItem("dramaqu_speed")
       if (stored !== null) {
         return parseFloat(stored)
@@ -504,8 +504,6 @@
   }
 
   const playbackSpeed = ref(getStoredSpeed())
-  const lastTapTime = ref(0)
-  const tapTimeout = ref(null)
   const currentTime = ref(0)
   const duration = ref(0)
   const isDragging = ref(false)
@@ -862,14 +860,14 @@
     const touchY = e.touches[0].clientY
     const screenWidth = window.innerWidth
 
-    // Check if touch di zona 2x speed (setengah kanan layar)
-    const isSpeedZone = touchX > screenWidth / 2
+    // Check if touch di zona 2x speed (bagian kanan layar, lebih kecil)
+    const isSpeedZone = touchX > screenWidth * 0.7
 
     console.log("🔵 Touch start:", {
       x: touchX,
       y: touchY,
       screenWidth,
-      speedZoneStart: screenWidth / 2,
+      speedZoneStart: screenWidth * 0.7,
       isSpeedZone,
     })
 
@@ -942,9 +940,9 @@
   const handleTouchEndWrapper = (e) => {
     const touchX = e.changedTouches[0].clientX
     const screenWidth = window.innerWidth
-    const isSpeedZone = touchX > screenWidth / 2
+    const isSpeedZone = touchX > screenWidth * 0.7
 
-    // Kalau di speed zone, handle release untuk 2x speed
+    // Kalau di speed zone (bagian kanan 30% layar), handle release untuk 2x speed
     if (isSpeedZone) {
       handleScreenRelease(e)
       return
@@ -1061,7 +1059,7 @@
   }
 
   // Handle screen click - show overlays if hidden or pause
-  const handleScreenClick = (e) => {
+  const handleScreenClick = (_e) => {
     // Close any open menus first
     if (showQualityMenu.value || showSpeedMenu.value || showVolumeSlider.value) {
       showQualityMenu.value = false
@@ -1251,7 +1249,7 @@
       isMuted.value = clampedVolume === 0
     }
     // Save to localStorage
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.setItem("dramaqu_volume", clampedVolume.toString())
       localStorage.setItem("dramaqu_muted", (clampedVolume === 0).toString())
     }
@@ -1277,7 +1275,7 @@
       isMuted.value = clampedVolume === 0
     }
     // Save to localStorage
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.setItem("dramaqu_volume", clampedVolume.toString())
       localStorage.setItem("dramaqu_muted", (clampedVolume === 0).toString())
     }
@@ -1300,7 +1298,7 @@
       isMuted.value = true
     }
     // Save to localStorage
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.setItem("dramaqu_volume", volume.value.toString())
       localStorage.setItem("dramaqu_muted", isMuted.value.toString())
     }
@@ -1319,30 +1317,8 @@
     }
     showSpeedMenu.value = false
     // Save to localStorage
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.setItem("dramaqu_speed", speed.toString())
-    }
-  }
-
-  // Double tap to toggle 2x speed
-  const handleDoubleTap = (e) => {
-    if (isPaused.value) return
-
-    const currentTime = Date.now()
-    const timeDiff = currentTime - lastTapTime.value
-
-    if (timeDiff < 300 && timeDiff > 0) {
-      // Double tap detected
-      e.preventDefault()
-      e.stopPropagation()
-
-      // Toggle between 1x and 2x speed
-      const newSpeed = playbackSpeed.value === 2 ? 1 : 2
-      selectSpeed(newSpeed)
-
-      lastTapTime.value = 0
-    } else {
-      lastTapTime.value = currentTime
     }
   }
 
@@ -1441,22 +1417,6 @@
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
-  // Handle show overlays with auto-hide
-  const handleShowOverlays = () => {
-    emit("toggle-overlays")
-
-    // Auto-hide after 3 seconds if still playing
-    if (autoHideTimeout) {
-      clearTimeout(autoHideTimeout)
-    }
-
-    autoHideTimeout = setTimeout(() => {
-      if (!isPaused.value) {
-        emit("toggle-overlays")
-      }
-    }, 3000)
-  }
-
   // Watch for source changes
   watch(
     () => props.src,
@@ -1464,14 +1424,12 @@
       if (player.value && videoElement.value && newSrc) {
         try {
           // Reset initial time when source changes (unless it's the same episode)
-          const shouldResume = props.initialTime > 1
 
           videoElement.value.src = newSrc
           videoElement.value.load()
 
           // Reset flag when source changes
           let hasSetInitialTime = false
-          let isSettingTime = false
 
           // Wait for video metadata before setting time and playing
           const handleLoadedMetadata = () => {
@@ -1681,3 +1639,4 @@
     opacity: 0;
   }
 </style>
+

@@ -14,9 +14,9 @@
         <div class="px-4 py-4 border-b border-gray-800">
           <div class="flex items-center gap-3 mb-3">
             <button
-              @click="closeSearch"
               class="p-2 hover:bg-gray-800 rounded-lg transition text-gray-400 hover:text-white"
               title="Close"
+              @click="closeSearch"
             >
               <svg
                 class="w-6 h-6"
@@ -29,7 +29,7 @@
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M6 18L18 6M6 6l12 12"
-                ></path>
+                />
               </svg>
             </button>
             <h2 class="text-xl font-bold text-white">Search</h2>
@@ -54,12 +54,12 @@
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              ></path>
+              />
             </svg>
             <button
               v-if="searchQuery"
-              @click="clearSearch"
               class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              @click="clearSearch"
             >
               <svg
                 class="w-5 h-5"
@@ -72,7 +72,7 @@
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M6 18L18 6M6 6l12 12"
-                ></path>
+                />
               </svg>
             </button>
           </div>
@@ -85,7 +85,7 @@
             v-if="searching"
             class="py-8 text-center"
           >
-            <div class="inline-block w-8 h-8 border-4 border-gray-700 border-t-red-600 rounded-full animate-spin"></div>
+            <div class="inline-block w-8 h-8 border-4 border-gray-700 border-t-red-600 rounded-full animate-spin" />
             <p class="text-gray-400 mt-2">Searching...</p>
           </div>
 
@@ -220,15 +220,6 @@
     get: () => props.show,
     set: (value) => emit("update:show", value),
   })
-
-  const toggleSearch = () => {
-    showSearch.value = !showSearch.value
-    if (showSearch.value) {
-      nextTick(() => {
-        searchInput.value?.focus()
-      })
-    }
-  }
 
   const closeSearch = () => {
     showSearch.value = false

@@ -8,7 +8,7 @@ export default defineEventHandler(async () => {
     const data = readFileSync(filePath, "utf8")
     const codes = JSON.parse(data)
     return Array.isArray(codes) ? codes : []
-  } catch (err: any) {
+  } catch {
     return []
   }
 })

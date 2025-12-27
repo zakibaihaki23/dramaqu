@@ -2,22 +2,6 @@
 import { ref } from "vue"
 import { useRuntimeConfig, useNuxtApp } from "#app"
 
-// VIP codes cache (loaded via server API)
-let VIP_CODES = []
-let vipCodesLoaded = false
-
-async function loadVipCodes() {
-  try {
-    const nuxtApp = useNuxtApp()
-    const codes = await (nuxtApp?.$fetch ? nuxtApp.$fetch("/api/vip-codes") : fetch("/api/vip-codes").then((r) => r.json()))
-    VIP_CODES = Array.isArray(codes) ? codes : []
-    vipCodesLoaded = true
-  } catch (err) {
-    VIP_CODES = []
-    vipCodesLoaded = true
-  }
-}
-
 // Client-side app does not add VIP codes; generation handled by server bot
 
 export const useVIP = () => {
@@ -161,7 +145,7 @@ export const useVIP = () => {
             if (validCodes.length !== data.usedCodes.length) {
               data.usedCodes = validCodes
               data.checksum = generateChecksum(data)
-              const db = openDB().then((db) => {
+              openDB().then((db) => {
                 const transaction = db.transaction(["vip"], "readwrite")
                 const store = transaction.objectStore("vip")
                 store.put(data)
@@ -181,7 +165,7 @@ export const useVIP = () => {
           resolve(false)
         }
       })
-    } catch (error) {
+    } catch {
       isVIP.value = false
       return false
     }
@@ -229,12 +213,12 @@ export const useVIP = () => {
           }
 
           // Hitung expiry dari response server
-          const expiry = new Date(response.code.expiredAt).getTime()
+          const expiry = response.code.unlimited ? null : new Date(response.code.expiredAt).getTime()
 
           // Tambah ke used codes
           currentData.usedCodes.push({
             hash: hashCode(upperCode),
-            unlimited: false,
+            unlimited: response.code.unlimited || false,
             expiry: expiry,
           })
           currentData.timestamp = Date.now()
@@ -298,7 +282,7 @@ export const useVIP = () => {
           resolve({ isVIP: false, usedCount: 0 })
         }
       })
-    } catch (error) {
+    } catch {
       return { isVIP: false, usedCount: 0 }
     }
   }

@@ -4,7 +4,7 @@ export const useWatchHistory = () => {
 
   // Get all watch history
   const getWatchHistory = () => {
-    if (process.client) {
+    if (import.meta.client) {
       const history = localStorage.getItem(STORAGE_KEY)
       return history ? JSON.parse(history) : []
     }
@@ -13,7 +13,7 @@ export const useWatchHistory = () => {
 
   // Save watch progress
   const saveWatchProgress = (dramaId, dramaData, episodeIndex, episodeData, currentTime = 0) => {
-    if (!process.client) return
+    if (!import.meta.client) return
 
     const history = getWatchHistory()
     
@@ -62,14 +62,14 @@ export const useWatchHistory = () => {
 
   // Clear all history
   const clearWatchHistory = () => {
-    if (process.client) {
+    if (import.meta.client) {
       localStorage.removeItem(STORAGE_KEY)
     }
   }
 
   // Remove specific drama from history
   const removeFromHistory = (dramaId) => {
-    if (!process.client) return
+    if (!import.meta.client) return
     
     const history = getWatchHistory()
     const filtered = history.filter(item => item.dramaId !== dramaId)
