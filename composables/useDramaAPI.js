@@ -1,7 +1,9 @@
 import axios from "axios"
 import { ref } from "vue"
+import { useRuntimeConfig } from "#app"
 
-const BASE_URL = "https://dramabox.sansekai.my.id/api"
+const runtimeConfig = useRuntimeConfig()
+const BASE_URL = runtimeConfig.public.apiBaseUrl
 
 // Create axios instance
 const apiClient = axios.create({
@@ -108,3 +110,4 @@ export const useDramaAPI = () => {
     searchDramas,
   }
 }
+

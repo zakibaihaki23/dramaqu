@@ -1,32 +1,20 @@
 // composables/useVIP.js
 import { ref } from "vue"
-import fs from "fs"
-import path from "path"
+import { useRuntimeConfig, useNuxtApp } from "#app"
 
-// Path ke file JSON VIP codes (di folder server)
-const VIP_CODES_FILE = path.join(process.cwd(), "server", "vip-codes.json")
-
-// Load VIP codes dari file JSON (atau fallback ke hardcoded jika file belum ada)
+// VIP codes cache (loaded via server API)
 let VIP_CODES = []
-try {
-  const data = fs.readFileSync(VIP_CODES_FILE, "utf8")
-  VIP_CODES = JSON.parse(data)
-} catch (err) {
-  // Fallback ke hardcoded jika file belum ada
-  VIP_CODES = [
-    { code: "VIP123", duration: "7D", expiredAt: new Date("2025-12-31").toISOString() },
-    { code: "PREMIUM456", duration: "30D", expiredAt: new Date("2026-01-15").toISOString() },
-  ]
-  // Simpan fallback ke file
-  saveVipCodesToFile()
-}
+let vipCodesLoaded = false
 
-// Fungsi untuk simpan VIP codes ke file JSON
-function saveVipCodesToFile() {
+async function loadVipCodes() {
   try {
-    fs.writeFileSync(VIP_CODES_FILE, JSON.stringify(VIP_CODES, null, 2))
+    const nuxtApp = useNuxtApp()
+    const codes = await (nuxtApp?.$fetch ? nuxtApp.$fetch("/api/vip-codes") : fetch("/api/vip-codes").then((r) => r.json()))
+    VIP_CODES = Array.isArray(codes) ? codes : []
+    vipCodesLoaded = true
   } catch (err) {
-    console.error("Error saving VIP codes to file:", err)
+    VIP_CODES = []
+    vipCodesLoaded = true
   }
 }
 
@@ -39,23 +27,13 @@ export function validateVipCode(inputCode) {
 }
 
 // Fungsi untuk menambah kode VIP baru (dipanggil dari bot)
-export function addVipCode(code, duration, expiredAt) {
-  const newCode = {
-    code: code.toUpperCase(),
-    duration: `${duration}D`,
-    expiredAt: expiredAt.toISOString(),
-  }
-  VIP_CODES.push(newCode)
-  saveVipCodesToFile() // Persist ke file
-  console.log(`VIP code added and saved: ${code} (${duration}D)`)
-  return newCode
-}
+// Client-side app does not add VIP codes; generation handled by server bot
 
 export const useVIP = () => {
   const isVIP = ref(false)
 
-  // Secret salt for checksum (change this for production)
-  const SECRET_SALT = "dramaqu_vip_2024_secret_salt_change_me"
+  // Secret salt for checksum (from runtimeConfig public)
+  const SECRET_SALT = useRuntimeConfig()?.public?.SECRET_SALT
 
   // Hash function for code
   const hashCode = (str) => {
@@ -223,6 +201,11 @@ export const useVIP = () => {
     try {
       if (typeof window === "undefined" || !("indexedDB" in window)) {
         return { valid: false, message: "IndexedDB not supported" }
+      }
+
+      // Ensure VIP codes are loaded from server
+      if (!vipCodesLoaded) {
+        await loadVipCodes()
       }
 
       const upperCode = code.toUpperCase().trim()

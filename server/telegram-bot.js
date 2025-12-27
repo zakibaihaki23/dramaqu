@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { Telegraf, Markup } from "telegraf"
 import { customAlphabet } from "nanoid"
 import fs from "fs"
@@ -44,8 +45,12 @@ function addVipCode(code, duration, expiredAt) {
   return newCode
 }
 
-// BOT_TOKEN dari env atau hardcode
-const BOT_TOKEN = process.env.BOT_TOKEN || "8536424453:AAHACxE3x_nj5B8-HYtCtjJBOvHn5iC_Ivo"
+// BOT_TOKEN dari env (wajib di-set, tidak ada fallback)
+const BOT_TOKEN = process.env.BOT_TOKEN
+if (!BOT_TOKEN) {
+  console.error("❌ BOT_TOKEN env is missing. Set BOT_TOKEN in environment or .env file.")
+  process.exit(1)
+}
 const bot = new Telegraf(BOT_TOKEN)
 
 // Generator kode
