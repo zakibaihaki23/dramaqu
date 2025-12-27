@@ -18,15 +18,6 @@ async function loadVipCodes() {
   }
 }
 
-// Fungsi untuk validasi kode VIP
-export function validateVipCode(inputCode) {
-  const code = VIP_CODES.find((c) => c.code === inputCode.toUpperCase())
-  if (!code) return null
-  if (new Date() > new Date(code.expiredAt)) return null // Expired
-  return code
-}
-
-// Fungsi untuk menambah kode VIP baru (dipanggil dari bot)
 // Client-side app does not add VIP codes; generation handled by server bot
 
 export const useVIP = () => {
@@ -203,20 +194,26 @@ export const useVIP = () => {
         return { valid: false, message: "IndexedDB not supported" }
       }
 
-      // Ensure VIP codes are loaded from server
-      if (!vipCodesLoaded) {
-        await loadVipCodes()
-      }
-
       const upperCode = code.toUpperCase().trim()
 
-      // Cek dari JSON file (server-side codes)
-      const vipCode = validateVipCode(upperCode)
-      if (!vipCode) {
-        return { valid: false, message: "Invalid code" }
+      // Call server API to validate and redeem code
+      const nuxtApp = useNuxtApp()
+      const response = await (nuxtApp?.$fetch
+        ? nuxtApp.$fetch("/api/vip-validate", {
+            method: "POST",
+            body: { code: upperCode },
+          })
+        : fetch("/api/vip-validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: upperCode }),
+          }).then((r) => r.json()))
+
+      if (!response.valid) {
+        return { valid: false, message: response.message }
       }
 
-      // Jika valid, simpan ke IndexedDB untuk tracking user
+      // Code redeemed successfully on server, now save to IndexedDB for local tracking
       const db = await openDB()
       const transaction = db.transaction(["vip"], "readwrite")
       const store = transaction.objectStore("vip")
@@ -231,24 +228,12 @@ export const useVIP = () => {
             currentData.usedCodes = []
           }
 
-          // Cek jika kode sudah digunakan
-          const codeHash = hashCode(upperCode)
-          const existingCode = currentData.usedCodes.find((code) => code.hash === codeHash)
-          if (existingCode) {
-            if (existingCode.expiry && existingCode.expiry > Date.now()) {
-              resolve({ valid: false, message: "Code already used" })
-              return
-            }
-            // Kode expired, hapus dan allow reuse
-            currentData.usedCodes = currentData.usedCodes.filter((code) => code.hash !== codeHash)
-          }
-
-          // Hitung expiry dari JSON
-          const expiry = new Date(vipCode.expiredAt).getTime()
+          // Hitung expiry dari response server
+          const expiry = new Date(response.code.expiredAt).getTime()
 
           // Tambah ke used codes
           currentData.usedCodes.push({
-            hash: codeHash,
+            hash: hashCode(upperCode),
             unlimited: false,
             expiry: expiry,
           })
@@ -260,7 +245,7 @@ export const useVIP = () => {
           const putRequest = store.put(dataToSave)
           putRequest.onsuccess = () => {
             isVIP.value = true
-            resolve({ valid: true, isAdmin: false, message: "VIP access activated!" })
+            resolve({ valid: true, isAdmin: false, message: response.message })
           }
           putRequest.onerror = (error) => {
             console.error("Error saving code:", error)
