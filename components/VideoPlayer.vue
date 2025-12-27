@@ -861,13 +861,13 @@
     const screenWidth = window.innerWidth
 
     // Check if touch di zona 2x speed (bagian kanan layar, lebih kecil)
-    const isSpeedZone = touchX > screenWidth * 0.7
+    const isSpeedZone = touchX > screenWidth * 0.9
 
     console.log("🔵 Touch start:", {
       x: touchX,
       y: touchY,
       screenWidth,
-      speedZoneStart: screenWidth * 0.7,
+      speedZoneStart: screenWidth * 0.9,
       isSpeedZone,
     })
 
@@ -940,9 +940,9 @@
   const handleTouchEndWrapper = (e) => {
     const touchX = e.changedTouches[0].clientX
     const screenWidth = window.innerWidth
-    const isSpeedZone = touchX > screenWidth * 0.7
+    const isSpeedZone = touchX > screenWidth * 0.9
 
-    // Kalau di speed zone (bagian kanan 30% layar), handle release untuk 2x speed
+    // Kalau di speed zone (bagian kanan 10% layar), handle release untuk 2x speed
     if (isSpeedZone) {
       handleScreenRelease(e)
       return
@@ -1107,13 +1107,13 @@
     const touchX = e.touches[0].clientX
     const screenWidth = window.innerWidth
 
-    // Check if touch di zona 2x speed (setengah kanan layar)
-    const isSpeedZone = touchX > screenWidth / 2
+    // Check if touch di zona 2x speed (bagian kanan layar, lebih kecil - mulai dari 90% layar)
+    const isSpeedZone = touchX > screenWidth * 0.9
 
     console.log("🔥 handleScreenPress called:", {
       x: touchX,
       screenWidth,
-      speedZoneStart: screenWidth / 2,
+      speedZoneStart: screenWidth * 0.9,
       isSpeedZone,
     })
 
