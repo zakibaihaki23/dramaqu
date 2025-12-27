@@ -1,10 +1,10 @@
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin((nuxtApp) => {
   // Handle pull-to-refresh prevention for mobile PWA
   if (process.client) {
     let startY = 0
     let isAtTop = false
 
-    const preventPullToRefresh = (e: TouchEvent) => {
+    const preventPullToRefresh = (e) => {
       const currentY = e.touches[0].clientY
       const deltaY = currentY - startY
 
@@ -18,7 +18,7 @@ export default defineNuxtPlugin(() => {
       }
     }
 
-    const handleTouchStart = (e: TouchEvent) => {
+    const handleTouchStart = (e) => {
       startY = e.touches[0].clientY
       isAtTop = window.scrollY <= 5 // Consider "at top" if within 5px of top
     }
@@ -33,12 +33,10 @@ export default defineNuxtPlugin(() => {
       document.removeEventListener("touchmove", preventPullToRefresh)
     }
 
-    // Auto-enable for detail pages, disable for home
-    const router = useRouter()
-    const currentRoute = router.currentRoute
-
-    watchEffect(() => {
-      const isDetailPage = currentRoute.value.path.includes("/detail/") || currentRoute.value.path.includes("/watch")
+    // Check current route and enable/disable accordingly
+    const checkRoute = () => {
+      const currentPath = window.location.pathname
+      const isDetailPage = currentPath.includes("/detail/") || currentPath.includes("/watch")
 
       if (isDetailPage) {
         enablePullPrevention()
@@ -51,13 +49,25 @@ export default defineNuxtPlugin(() => {
         document.body.style.overscrollBehavior = ""
         document.body.style.touchAction = ""
       }
+    }
+
+    // Initial check
+    checkRoute()
+
+    // Listen for navigation changes (SPA routing)
+    window.addEventListener("popstate", checkRoute)
+
+    // Also listen for Nuxt page changes
+    nuxtApp.hook("page:finish", () => {
+      setTimeout(checkRoute, 100) // Small delay to ensure DOM is updated
     })
 
     // Cleanup on unmount
-    onUnmounted(() => {
+    nuxtApp.hook("app:beforeMount", () => {
       disablePullPrevention()
       document.body.style.overscrollBehavior = ""
       document.body.style.touchAction = ""
+      window.removeEventListener("popstate", checkRoute)
     })
   }
 })

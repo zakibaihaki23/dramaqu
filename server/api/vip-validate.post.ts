@@ -21,11 +21,12 @@ export default defineEventHandler(async (event) => {
       codes = JSON.parse(data)
       if (!Array.isArray(codes)) codes = []
     } catch (err) {
+      console.error("Error reading VIP codes file:", err)
       return { valid: false, message: "Server error" }
     }
 
     // Find the code
-    const codeIndex = codes.findIndex((c: any) => c.code === upperCode)
+    const codeIndex = codes.findIndex((c) => c.code === upperCode)
     if (codeIndex === -1) {
       return { valid: false, message: "Invalid code" }
     }
@@ -49,7 +50,7 @@ export default defineEventHandler(async (event) => {
       message: "VIP access activated!",
       code: vipCode,
     }
-  } catch (err: any) {
+  } catch (err) {
     console.error("VIP validation error:", err)
     return { valid: false, message: "Server error" }
   }
