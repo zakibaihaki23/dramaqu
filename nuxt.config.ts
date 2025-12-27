@@ -41,35 +41,26 @@ export default defineNuxtConfig({
 
   // PWA Configuration - Manual approach with existing nitro config
 
-  // Temporarily disabled to fix Nuxt manifest conflicts
-  // app: {
-  //   head: {
-  //     title: "DramaQu - Watch Korean Dramas Online",
-  //     meta: [
-  //       { charset: "utf-8" },
-  //       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
-  //       { name: "theme-color", content: "#000000" },
-  //       { name: "apple-mobile-web-app-capable", content: "yes" },
-  //       { name: "mobile-web-app-capable", content: "yes" },
-  //       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-  //       { name: "apple-mobile-web-app-title", content: "DramaQu" },
-  //       { name: "application-name", content: "DramaQu" },
-  //       { name: "msapplication-TileColor", content: "#000000" },
-  //       { name: "msapplication-navbutton-color", content: "#000000" },
-  //       { name: "description", content: "Watch Korean dramas online for free with high quality streaming" },
-  //       { name: "keywords", content: "korean drama, streaming, watch online, free, dramaqu" },
-  //       { property: "og:title", content: "DramaQu - Watch Korean Dramas Online" },
-  //       { property: "og:description", content: "Watch Korean dramas online for free with high quality streaming" },
-  //       { property: "og:type", content: "website" },
-  //       { name: "twitter:card", content: "summary" },
-  //       { name: "twitter:title", content: "DramaQu - Watch Korean Dramas Online" },
-  //       { name: "twitter:description", content: "Watch Korean dramas online for free with high quality streaming" }
-  //     ],
-  //     link: [
-  //       { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
-  //       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-  //       { rel: "manifest", href: "/manifest.json" }
-  //     ]
-  //   }
-  // }
+  // Custom app template for PWA
+  app: {
+    head: {
+      title: "DramaQu - Watch Korean Dramas Online",
+      meta: [
+        { charset: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { name: "theme-color", content: "#000000" },
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "mobile-web-app-capable", content: "yes" },
+        { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+        { name: "apple-mobile-web-app-title", content: "DramaQu" },
+        { name: "application-name", content: "DramaQu" },
+        { name: "description", content: "Watch Korean dramas online for free with high quality streaming" },
+      ],
+      link: [
+        { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+        { rel: "apple-touch-icon", href: "/icon-192.png" },
+        { rel: "manifest", href: "/manifest.json" },
+      ],
+    },
+  },
 })
