@@ -564,6 +564,16 @@
     error.value = null
 
     try {
+      // Check VIP status first before hitting any API
+      await checkVIPStatus()
+
+      // If not VIP, don't fetch drama details to prevent API exposure
+      if (!isVIPComputed.value) {
+        console.log("User is not VIP, skipping API calls to prevent exposure")
+        loading.value = false
+        return
+      }
+
       // Fetch drama details
       const dramaData = await fetchDramaDetails(dramaId.value)
 

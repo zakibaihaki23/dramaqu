@@ -126,7 +126,14 @@
           }
           // Update cover if missing
           if (!item.dramaCover || item.dramaCover === "") {
-            item.dramaCover = dramaData.bookCover || dramaData.coverWap || dramaData.image || dramaData.poster || ""
+            item.dramaCover = dramaData.bookCover || dramaData.coverWap || dramaData.image || dramaData.poster || dramaData.cover || ""
+            console.log("Updated cover for", item.dramaName, ":", item.dramaCover, "from dramaData:", {
+              bookCover: dramaData.bookCover,
+              coverWap: dramaData.coverWap,
+              image: dramaData.image,
+              poster: dramaData.poster,
+              cover: dramaData.cover,
+            })
           }
           // Update name if missing
           if (!item.dramaName || item.dramaName === "") {
