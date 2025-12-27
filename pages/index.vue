@@ -132,8 +132,8 @@
             let coverUrl = dramaData.bookCover || dramaData.coverWap || dramaData.image || dramaData.poster || dramaData.cover || ""
 
             // If cover URL is relative (doesn't start with http), add base URL
-            if (coverUrl && !coverUrl.startsWith('http')) {
-              coverUrl = `https://dramabox.sansekai.my.id${coverUrl.startsWith('/') ? '' : '/'}${coverUrl}`
+            if (coverUrl && !coverUrl.startsWith("http")) {
+              coverUrl = `https://dramabox.sansekai.my.id${coverUrl.startsWith("/") ? "" : "/"}${coverUrl}`
             }
 
             item.dramaCover = coverUrl
@@ -167,8 +167,8 @@
       }
 
       // Filter out dramas that are fully watched (current episode index + 1 >= total episodes)
-      history = history.filter(item => {
-        const isFullyWatched = (item.episodeIndex + 1) >= item.totalEpisodes
+      history = history.filter((item) => {
+        const isFullyWatched = item.episodeIndex + 1 >= item.totalEpisodes
         console.log("Checking filter for", item.dramaName, "- episode:", item.episodeIndex + 1, "/", item.totalEpisodes, "- fully watched:", isFullyWatched)
         if (isFullyWatched) {
           console.log("Removing fully watched drama from continue watching:", item.dramaName, `(Episode ${item.episodeIndex + 1}/${item.totalEpisodes})`)

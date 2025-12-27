@@ -9,10 +9,10 @@ export const useWatchHistory = () => {
       let parsedHistory = history ? JSON.parse(history) : []
 
       // Migrate old relative URLs to absolute URLs
-      parsedHistory = parsedHistory.map(item => {
-        if (item.dramaCover && !item.dramaCover.startsWith('http')) {
-          item.dramaCover = `https://dramabox.sansekai.my.id${item.dramaCover.startsWith('/') ? '' : '/'}${item.dramaCover}`
-          console.log('Migrated cover URL for:', item.dramaName, item.dramaCover)
+      parsedHistory = parsedHistory.map((item) => {
+        if (item.dramaCover && !item.dramaCover.startsWith("http")) {
+          item.dramaCover = `https://dramabox.sansekai.my.id${item.dramaCover.startsWith("/") ? "" : "/"}${item.dramaCover}`
+          console.log("Migrated cover URL for:", item.dramaName, item.dramaCover)
         }
         return item
       })
@@ -46,8 +46,8 @@ export const useWatchHistory = () => {
 
     // Ensure cover URL is absolute
     let coverUrl = dramaData.bookCover || dramaData.bookCoverWap || dramaData.coverWap || dramaData.image || dramaData.poster || dramaData.cover || ""
-    if (coverUrl && !coverUrl.startsWith('http')) {
-      coverUrl = `https://dramabox.sansekai.my.id${coverUrl.startsWith('/') ? '' : '/'}${coverUrl}`
+    if (coverUrl && !coverUrl.startsWith("http")) {
+      coverUrl = `https://dramabox.sansekai.my.id${coverUrl.startsWith("/") ? "" : "/"}${coverUrl}`
     }
 
     const watchEntry = {
