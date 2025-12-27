@@ -6,7 +6,23 @@ export const useWatchHistory = () => {
   const getWatchHistory = () => {
     if (import.meta.client) {
       const history = localStorage.getItem(STORAGE_KEY)
-      return history ? JSON.parse(history) : []
+      let parsedHistory = history ? JSON.parse(history) : []
+
+      // Migrate old relative URLs to absolute URLs
+      parsedHistory = parsedHistory.map(item => {
+        if (item.dramaCover && !item.dramaCover.startsWith('http')) {
+          item.dramaCover = `https://dramabox.sansekai.my.id${item.dramaCover.startsWith('/') ? '' : '/'}${item.dramaCover}`
+          console.log('Migrated cover URL for:', item.dramaName, item.dramaCover)
+        }
+        return item
+      })
+
+      // Save migrated data back to localStorage
+      if (parsedHistory.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedHistory))
+      }
+
+      return parsedHistory
     }
     return []
   }
@@ -28,10 +44,16 @@ export const useWatchHistory = () => {
       totalEpisodes = dramaData.episodes.length
     }
 
+    // Ensure cover URL is absolute
+    let coverUrl = dramaData.bookCover || dramaData.bookCoverWap || dramaData.coverWap || dramaData.image || dramaData.poster || dramaData.cover || ""
+    if (coverUrl && !coverUrl.startsWith('http')) {
+      coverUrl = `https://dramabox.sansekai.my.id${coverUrl.startsWith('/') ? '' : '/'}${coverUrl}`
+    }
+
     const watchEntry = {
       dramaId,
       dramaName: dramaData.bookName || dramaData.title,
-      dramaCover: dramaData.bookCover || dramaData.bookCoverWap || dramaData.coverWap || dramaData.image || dramaData.poster || dramaData.cover,
+      dramaCover: coverUrl,
       episodeIndex,
       episodeName: episodeData.chapterName,
       episodeId: episodeData.chapterId,

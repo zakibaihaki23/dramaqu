@@ -15,6 +15,7 @@
             :alt="item.dramaName"
             class="w-full h-full object-cover"
             loading="lazy"
+            @error="handleImageError"
           >
           <div
             v-else
@@ -62,6 +63,12 @@
       default: () => [],
     },
   })
+
+  const handleImageError = (event) => {
+    console.warn('Continue watching image failed to load:', event.target.src, 'for drama:', event.target.alt)
+    // Hide the broken image
+    event.target.style.display = 'none'
+  }
 </script>
 
 <style scoped>

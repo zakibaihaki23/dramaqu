@@ -112,21 +112,31 @@
       topPicks.value = forYou.value.slice(0, 1)
 
       // Load watch history and enrich with total episodes
-      const history = getWatchHistory().slice(0, 8)
+      let history = getWatchHistory().slice(0, 8)
+      console.log("Raw watch history:", history)
 
       // Enrich history with total episodes and cover from drama data
       for (const item of history) {
+        console.log("Processing watch history item:", item.dramaName, "ID:", item.dramaId, "episode:", item.episodeIndex, "time:", item.currentTime)
         // Try to find drama in fetched data to get total episodes and cover
         const dramaData = [...forYou.value, ...latest.value, ...trending.value, ...random.value].find((d) => (d.bookId || d.id) == item.dramaId)
 
         if (dramaData) {
+          console.log("Found drama data for", item.dramaName, "- totalEpisodes:", dramaData.totalChapterNum)
           // Update total episodes
           if (dramaData.totalChapterNum) {
             item.totalEpisodes = dramaData.totalChapterNum
           }
           // Update cover if missing
           if (!item.dramaCover || item.dramaCover === "") {
-            item.dramaCover = dramaData.bookCover || dramaData.coverWap || dramaData.image || dramaData.poster || dramaData.cover || ""
+            let coverUrl = dramaData.bookCover || dramaData.coverWap || dramaData.image || dramaData.poster || dramaData.cover || ""
+
+            // If cover URL is relative (doesn't start with http), add base URL
+            if (coverUrl && !coverUrl.startsWith('http')) {
+              coverUrl = `https://dramabox.sansekai.my.id${coverUrl.startsWith('/') ? '' : '/'}${coverUrl}`
+            }
+
+            item.dramaCover = coverUrl
             console.log("Updated cover for", item.dramaName, ":", item.dramaCover, "from dramaData:", {
               bookCover: dramaData.bookCover,
               coverWap: dramaData.coverWap,
@@ -151,8 +161,25 @@
             // If fetch fails, use episodes.length from history or default to 1
             item.totalEpisodes = item.totalEpisodes || 1
           }
+        } else {
+          console.log("Drama data NOT found for", item.dramaName, "ID:", item.dramaId, "- will try API fetch")
         }
       }
+
+      // Filter out dramas that are fully watched (current episode index + 1 >= total episodes)
+      history = history.filter(item => {
+        const isFullyWatched = (item.episodeIndex + 1) >= item.totalEpisodes
+        console.log("Checking filter for", item.dramaName, "- episode:", item.episodeIndex + 1, "/", item.totalEpisodes, "- fully watched:", isFullyWatched)
+        if (isFullyWatched) {
+          console.log("Removing fully watched drama from continue watching:", item.dramaName, `(Episode ${item.episodeIndex + 1}/${item.totalEpisodes})`)
+        }
+        return !isFullyWatched
+      })
+
+      console.log("After filtering, continue watching items:", history.length)
+
+      // Limit to 8 items after filtering
+      history = history.slice(0, 8)
 
       continueWatching.value = history
 

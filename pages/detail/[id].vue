@@ -19,6 +19,60 @@
       </div>
     </div>
 
+    <!-- VIP Restricted Placeholder - Overlay yang block screen -->
+    <div
+      v-if="vipChecked && !isVIPComputed"
+      class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
+    >
+      <!-- Back Button (Only visible in overlay) -->
+      <button
+        class="absolute top-4 left-4 flex items-center gap-2 text-white hover:text-gray-300 transition bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg z-[201]"
+        @click="$router.back()"
+      >
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+        <span class="text-sm font-medium">Back</span>
+      </button>
+
+      <!-- VIP Content -->
+      <div class="flex flex-col items-center gap-4 px-8">
+        <svg
+          class="w-20 h-20 text-red-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+        />
+        </svg>
+        <div class="text-center">
+          <p class="text-white text-xl font-bold mb-2">VIP Access Required</p>
+          <p class="text-gray-400 text-sm mb-6 max-w-md">Unlock full access to watch all episodes in HD quality. Enter your VIP code to continue.</p>
+        </div>
+        <button
+          class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition transform hover:scale-105 shadow-lg relative z-[202]"
+          @click="showVIPModal = true"
+        >
+          Join VIP
+        </button>
+      </div>
+    </div>
+
     <!-- Full Screen Video Player -->
     <div
       v-if="!loading && drama"
@@ -49,60 +103,6 @@
         @toggle-overlays="showAllOverlays = !showAllOverlays"
         @progress-update="handleProgressUpdate"
       />
-
-      <!-- VIP Restricted Placeholder - Overlay yang block screen -->
-      <div
-        v-if="!isVIPComputed"
-        class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
-      >
-        <!-- Back Button (Only visible in overlay) -->
-        <button
-          class="absolute top-4 left-4 flex items-center gap-2 text-white hover:text-gray-300 transition bg-black/40 backdrop-blur-sm px-3 py-2 rounded-lg z-[201]"
-          @click="$router.back()"
-        >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          <span class="text-sm font-medium">Back</span>
-        </button>
-
-        <!-- VIP Content -->
-        <div class="flex flex-col items-center gap-4 px-8">
-          <svg
-            class="w-20 h-20 text-red-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-            />
-          </svg>
-          <div class="text-center">
-            <p class="text-white text-xl font-bold mb-2">VIP Access Required</p>
-            <p class="text-gray-400 text-sm mb-6 max-w-md">Unlock full access to watch all episodes in HD quality. Enter your VIP code to continue.</p>
-          </div>
-          <button
-            class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition transform hover:scale-105 shadow-lg relative z-[202]"
-            @click="showVIPModal = true"
-          >
-            Join VIP
-          </button>
-        </div>
-      </div>
 
       <!-- Episode Selector (Bottom Bar) - Show when paused or overlays visible -->
       <Transition name="fade">
@@ -193,11 +193,12 @@
   // VIP Management
   const { isVIP, checkVIPStatus } = useVIP()
   const showVIPModal = ref(false)
+  const vipChecked = ref(false) // Track if VIP status has been checked
 
   // Computed untuk memastikan isVIP reactive di template
   const isVIPComputed = computed(() => {
     const vip = Boolean(isVIP.value)
-    console.log("Detail page isVIPComputed:", vip, "isVIP.value:", isVIP.value)
+    console.log("Detail page isVIPComputed:", vip, "isVIP.value:", isVIP.value, "vipChecked:", vipChecked.value)
     return vip
   })
 
@@ -488,6 +489,9 @@
     // Reset overlays to visible when video starts playing
     // VideoPlayer will auto-hide after 10 seconds
     showAllOverlays.value = false
+
+    // Save progress immediately when video starts playing
+    saveCurrentProgress()
   }
 
   const handlePlayerPause = () => {
@@ -549,12 +553,22 @@
     await nextTick()
 
     if (isVIPComputed.value) {
-      // If there's already a selected episode, re-select it to enable video
-      if (currentEpisode.value) {
-        selectEpisode(currentEpisode.value, currentEpisodeIndex.value)
-      } else if (episodes.value.length > 0) {
-        // Auto-select first episode if no episode is selected yet
-        selectEpisode(episodes.value[0], 0)
+      // If we don't have drama data yet (was skipped because not VIP), load it now
+      if (!drama.value || episodes.value.length === 0) {
+        console.log("VIP activated but no drama data, loading data now...")
+        await loadData()
+        // Force reactivity update after loading data
+        await nextTick()
+        await nextTick()
+        await nextTick()
+      } else {
+        // If there's already a selected episode, re-select it to enable video
+        if (currentEpisode.value) {
+          selectEpisode(currentEpisode.value, currentEpisodeIndex.value)
+        } else if (episodes.value.length > 0) {
+          // Auto-select first episode if no episode is selected yet
+          selectEpisode(episodes.value[0], 0)
+        }
       }
     }
   }
@@ -565,7 +579,10 @@
 
     try {
       // Check VIP status first before hitting any API
+      console.log("Checking VIP status before loading data...")
       await checkVIPStatus()
+      vipChecked.value = true // Mark VIP status as checked
+      console.log("VIP status checked, isVIP:", isVIP.value, "isVIPComputed:", isVIPComputed.value)
 
       // If not VIP, don't fetch drama details to prevent API exposure
       if (!isVIPComputed.value) {
@@ -665,7 +682,14 @@
     { immediate: false }
   )
 
-  onMounted(() => {
+  onMounted(async () => {
+    // Force check VIP status immediately on mount
+    console.log("Detail page mounted, checking VIP status...")
+    await checkVIPStatus()
+    vipChecked.value = true
+    console.log("Initial VIP check complete, isVIP:", isVIP.value)
+
+    // Then load data
     loadData()
   })
 
