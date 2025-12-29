@@ -1,5 +1,5 @@
-// ecosystem.config.js
-export default {
+// ecosystem.config.cjs (CommonJS format)
+module.exports = {
   apps: [
     {
       name: "dramaqu-bot",
